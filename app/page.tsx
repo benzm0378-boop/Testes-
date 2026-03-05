@@ -24,7 +24,9 @@ import { cn } from '@/lib/utils';
 
 // --- Types ---
 
-type Solicitante = 'Supervisor' | 'Líder de oficina' | 'Equipe de ônibus';
+type Solicitante = 'André' | 'Juan' | 'Paulo' | 'Wender' | 'Andreza' | 'Rômulo' | 'Júlio';
+
+const SOLICITANTES: Solicitante[] = ['André', 'Juan', 'Paulo', 'Wender', 'Andreza', 'Rômulo', 'Júlio'];
 
 interface TestRecord {
   id: string;
@@ -52,7 +54,7 @@ interface TestRecord {
 const INITIAL_DATA: TestRecord[] = [
   {
     id: '1',
-    solicitante: 'Supervisor',
+    solicitante: 'André',
     percurso: 3,
     placa: 'ABC-1234',
     modelo: 'Mercedes-Benz Actros',
@@ -72,7 +74,7 @@ const INITIAL_DATA: TestRecord[] = [
   },
   {
     id: '2',
-    solicitante: 'Líder de oficina',
+    solicitante: 'Andreza',
     percurso: 1,
     placa: 'XYZ-9876',
     modelo: 'Volvo FH 540',
@@ -150,15 +152,23 @@ const WorkshopCheck = ({ onVerified }: { onVerified: () => void }) => {
 
 const TestForm = ({ onClose, onSubmit }: { onClose: () => void, onSubmit: (data: Omit<TestRecord, 'id'>) => void }) => {
   const [formData, setFormData] = useState<Partial<TestRecord>>({
-    solicitante: 'Supervisor',
+    solicitante: 'André',
     percurso: 1,
     dataSolicitacao: format(new Date(), 'yyyy-MM-dd'),
     horaSolicitacao: format(new Date(), 'HH:mm'),
+    dataInicio: format(new Date(), 'yyyy-MM-dd'),
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => {
+      const next = { ...prev, [name]: value };
+      // Sincroniza data de início com a data de solicitação automaticamente
+      if (name === 'dataSolicitacao') {
+        next.dataInicio = value;
+      }
+      return next;
+    });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -202,9 +212,9 @@ const TestForm = ({ onClose, onSubmit }: { onClose: () => void, onSubmit: (data:
                   onChange={handleChange}
                   className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
                 >
-                  <option value="Supervisor">Supervisor</option>
-                  <option value="Líder de oficina">Líder de oficina</option>
-                  <option value="Equipe de ônibus">Equipe de ônibus</option>
+                  {SOLICITANTES.map(name => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
                 </select>
               </div>
 
@@ -315,6 +325,7 @@ const TestForm = ({ onClose, onSubmit }: { onClose: () => void, onSubmit: (data:
                     type="date" 
                     name="dataInicio"
                     required
+                    value={formData.dataInicio}
                     onChange={handleChange}
                     className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-white text-sm"
                   />
@@ -507,18 +518,18 @@ export default function FieldTestDashboard() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-zinc-800/50 text-[10px] font-bold text-zinc-500 uppercase tracking-widest border-b border-zinc-800">
-                  <th className="px-4 py-4 whitespace-nowrap">Solicitante</th>
-                  <th className="px-4 py-4 whitespace-nowrap">Percurso</th>
-                  <th className="px-4 py-4 whitespace-nowrap">Veículo</th>
-                  <th className="px-4 py-4 whitespace-nowrap">Cliente</th>
-                  <th className="px-4 py-4 whitespace-nowrap">Falha</th>
-                  <th className="px-4 py-4 whitespace-nowrap">Localização</th>
-                  <th className="px-4 py-4 whitespace-nowrap">Início</th>
-                  <th className="px-4 py-4 whitespace-nowrap">Fim</th>
-                  <th className="px-4 py-4 whitespace-nowrap">KM</th>
-                  <th className="px-4 py-4 whitespace-nowrap">Motorista</th>
-                  <th className="px-4 py-4 whitespace-nowrap">Solicitação</th>
-                  <th className="px-4 py-4 whitespace-nowrap">Feedback</th>
+                  <th className="px-4 py-4 whitespace-nowrap min-w-[120px]">Solicitante</th>
+                  <th className="px-4 py-4 whitespace-nowrap min-w-[100px]">Percurso</th>
+                  <th className="px-4 py-4 whitespace-nowrap min-w-[160px]">Veículo</th>
+                  <th className="px-4 py-4 whitespace-nowrap min-w-[180px]">Cliente</th>
+                  <th className="px-4 py-4 whitespace-nowrap min-w-[280px]">Falha</th>
+                  <th className="px-4 py-4 whitespace-nowrap min-w-[180px]">Localização</th>
+                  <th className="px-4 py-4 whitespace-nowrap min-w-[120px]">Início</th>
+                  <th className="px-4 py-4 whitespace-nowrap min-w-[120px]">Fim</th>
+                  <th className="px-4 py-4 whitespace-nowrap min-w-[120px]">KM</th>
+                  <th className="px-4 py-4 whitespace-nowrap min-w-[160px]">Motorista</th>
+                  <th className="px-4 py-4 whitespace-nowrap min-w-[120px]">Solicitação</th>
+                  <th className="px-4 py-4 whitespace-nowrap min-w-[280px]">Feedback</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-800">
@@ -527,9 +538,7 @@ export default function FieldTestDashboard() {
                     <td className="px-4 py-4">
                       <span className={cn(
                         "px-2 py-1 rounded text-[10px] font-bold uppercase",
-                        record.solicitante === 'Supervisor' ? "bg-blue-500/10 text-blue-400" :
-                        record.solicitante === 'Líder de oficina' ? "bg-purple-500/10 text-purple-400" :
-                        "bg-orange-500/10 text-orange-400"
+                        "bg-zinc-800 text-zinc-300 border border-zinc-700"
                       )}>
                         {record.solicitante}
                       </span>
@@ -550,8 +559,8 @@ export default function FieldTestDashboard() {
                     <td className="px-4 py-4">
                       <span className="text-sm text-zinc-300">{record.cliente}</span>
                     </td>
-                    <td className="px-4 py-4 max-w-[200px]">
-                      <p className="text-xs text-zinc-400 truncate group-hover:whitespace-normal transition-all">{record.falha}</p>
+                    <td className="px-4 py-4">
+                      <p className="text-xs text-zinc-400 leading-relaxed">{record.falha}</p>
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-1.5 text-xs text-zinc-400">
@@ -594,10 +603,10 @@ export default function FieldTestDashboard() {
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-2">
                         <div className={cn(
-                          "w-2 h-2 rounded-full",
+                          "w-2 h-2 rounded-full shrink-0",
                           record.feedback.includes('Aguardando') ? "bg-amber-500 animate-pulse" : "bg-emerald-500"
                         )} />
-                        <span className="text-xs text-zinc-400 italic truncate max-w-[150px]">{record.feedback}</span>
+                        <span className="text-xs text-zinc-400 italic leading-relaxed">{record.feedback}</span>
                       </div>
                     </td>
                   </tr>
