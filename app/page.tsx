@@ -21,7 +21,9 @@ import {
   Lock,
   Eye,
   EyeOff,
-  Play
+  Play,
+  Edit,
+  Trash2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -30,9 +32,9 @@ import Image from 'next/image';
 
 // --- Types ---
 
-type Solicitante = 'André' | 'Juan' | 'Paulo' | 'Wender' | 'Andreza' | 'Rômulo' | 'Júlio' | 'Jairo';
+type Solicitante = string;
 
-const SOLICITANTES: Solicitante[] = ['André', 'Juan', 'Paulo', 'Wender', 'Andreza', 'Rômulo', 'Júlio', 'Jairo'];
+const MOTORISTAS = ['Kellver', 'Fabiano', 'Lucas', 'Rodrigo', 'Willer'];
 
 const PERCURSOS = [
   { id: 1, name: 'BAIRRO FLAMENGO', distance: '2 Km' },
@@ -266,7 +268,7 @@ const LoginScreen = ({ onLogin }: { onLogin: (user: any) => void }) => {
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder="Digite seu usuário"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all placeholder:text-zinc-700 text-sm"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all placeholder:text-zinc-700 text-sm [&:-webkit-autofill]:shadow-[0_0_0_1000px_#09090b_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
                   />
                 </div>
               </div>
@@ -278,7 +280,7 @@ const LoginScreen = ({ onLogin }: { onLogin: (user: any) => void }) => {
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
                   placeholder="Ex: Motorista de teste"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all placeholder:text-zinc-700 text-sm"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all placeholder:text-zinc-700 text-sm [&:-webkit-autofill]:shadow-[0_0_0_1000px_#09090b_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
                 />
               </div>
             </div>
@@ -293,7 +295,7 @@ const LoginScreen = ({ onLogin }: { onLogin: (user: any) => void }) => {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="Digite seu usuário"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all placeholder:text-zinc-700 text-sm"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all placeholder:text-zinc-700 text-sm [&:-webkit-autofill]:shadow-[0_0_0_1000px_#09090b_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
                 />
               </div>
             </div>
@@ -311,7 +313,7 @@ const LoginScreen = ({ onLogin }: { onLogin: (user: any) => void }) => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-12 py-3 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all placeholder:text-zinc-700 text-sm"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-12 py-3 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all placeholder:text-zinc-700 text-sm [&:-webkit-autofill]:shadow-[0_0_0_1000px_#09090b_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
               />
               <button 
                 type="button"
@@ -334,7 +336,7 @@ const LoginScreen = ({ onLogin }: { onLogin: (user: any) => void }) => {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-12 py-3 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all placeholder:text-zinc-700 text-sm"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-12 py-3 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all placeholder:text-zinc-700 text-sm [&:-webkit-autofill]:shadow-[0_0_0_1000px_#09090b_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
                 />
               </div>
             </div>
@@ -486,9 +488,17 @@ const WorkshopCheck = ({ onVerified }: { onVerified: () => void }) => {
   );
 };
 
-const TestForm = ({ onClose, onSubmit }: { onClose: () => void, onSubmit: (data: Omit<TestRecord, 'id'>) => void }) => {
-    const [formData, setFormData] = useState<Partial<TestRecord>>({
-    solicitante: 'André',
+const TestForm = ({ onClose, onSubmit, initialData, currentUser }: { 
+  onClose: () => void, 
+  onSubmit: (data: Omit<TestRecord, 'id'>) => void,
+  initialData?: TestRecord,
+  currentUser: any
+}) => {
+    const userFullName = currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : '';
+    
+    const [formData, setFormData] = useState<Partial<TestRecord>>(initialData || {
+    solicitante: userFullName,
+    motorista: MOTORISTAS[0],
     percurso: 1,
     dataSolicitacao: format(new Date(), 'yyyy-MM-dd'),
     horaSolicitacao: format(new Date(), 'HH:mm'),
@@ -508,7 +518,13 @@ const TestForm = ({ onClose, onSubmit }: { onClose: () => void, onSubmit: (data:
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData as Omit<TestRecord, 'id'>);
+    const submissionData = {
+      ...formData,
+      kmInicio: formData.kmInicio ? Number(formData.kmInicio) : 0,
+      kmFim: formData.kmFim ? Number(formData.kmFim) : 0,
+      percurso: formData.percurso ? Number(formData.percurso) : 1,
+    };
+    onSubmit(submissionData as Omit<TestRecord, 'id'>);
   };
 
   return (
@@ -521,9 +537,11 @@ const TestForm = ({ onClose, onSubmit }: { onClose: () => void, onSubmit: (data:
         <div className="p-6 border-bottom border-zinc-800 flex items-center justify-between bg-zinc-900/50">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-sky-500/10 text-sky-500 rounded-lg">
-              <Plus size={20} />
+              {initialData ? <Edit size={20} /> : <Plus size={20} />}
             </div>
-            <h2 className="text-xl font-bold text-white">Novo Agendamento de Teste</h2>
+            <h2 className="text-xl font-bold text-white">
+              {initialData ? 'Editar Agendamento de Teste' : 'Novo Agendamento de Teste'}
+            </h2>
           </div>
           <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors">
             <X size={24} />
@@ -540,17 +558,11 @@ const TestForm = ({ onClose, onSubmit }: { onClose: () => void, onSubmit: (data:
               
               <div className="space-y-2">
                 <label className="text-sm text-zinc-400">Solicitante</label>
-                <select 
-                  name="solicitante"
-                  required
-                  value={formData.solicitante}
-                  onChange={handleChange}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-sky-500 outline-none"
-                >
-                  {SOLICITANTES.map(name => (
-                    <option key={name} value={name}>{name}</option>
-                  ))}
-                </select>
+                <div className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2.5 text-zinc-400 font-medium flex items-center gap-2">
+                  <User size={16} className="text-zinc-600" />
+                  {formData.solicitante}
+                </div>
+                <input type="hidden" name="solicitante" value={formData.solicitante} />
               </div>
 
               <div className="space-y-2">
@@ -560,7 +572,7 @@ const TestForm = ({ onClose, onSubmit }: { onClose: () => void, onSubmit: (data:
                   required
                   value={formData.percurso}
                   onChange={handleChange}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-sky-500 outline-none"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all"
                 >
                   {PERCURSOS.map(p => (
                     <option key={p.id} value={p.id}>
@@ -578,7 +590,7 @@ const TestForm = ({ onClose, onSubmit }: { onClose: () => void, onSubmit: (data:
                     name="dataSolicitacao"
                     value={formData.dataSolicitacao}
                     onChange={handleChange}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-white text-sm"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-white text-sm focus:ring-2 focus:ring-sky-500 outline-none transition-all [&:-webkit-autofill]:shadow-[0_0_0_1000px_#09090b_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
                   />
                 </div>
                 <div className="space-y-2">
@@ -588,7 +600,7 @@ const TestForm = ({ onClose, onSubmit }: { onClose: () => void, onSubmit: (data:
                     name="horaSolicitacao"
                     value={formData.horaSolicitacao}
                     onChange={handleChange}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-white text-sm"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-white text-sm focus:ring-2 focus:ring-sky-500 outline-none transition-all [&:-webkit-autofill]:shadow-[0_0_0_1000px_#09090b_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
                   />
                 </div>
               </div>
@@ -606,9 +618,10 @@ const TestForm = ({ onClose, onSubmit }: { onClose: () => void, onSubmit: (data:
                   type="text" 
                   name="placa"
                   required
+                  value={formData.placa || ''}
                   placeholder="Ex: ABC-1234"
                   onChange={handleChange}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-sky-500 outline-none"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all [&:-webkit-autofill]:shadow-[0_0_0_1000px_#09090b_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
                 />
               </div>
 
@@ -618,9 +631,10 @@ const TestForm = ({ onClose, onSubmit }: { onClose: () => void, onSubmit: (data:
                   type="text" 
                   name="os"
                   required
+                  value={formData.os || ''}
                   placeholder="Ex: 123456"
                   onChange={handleChange}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-sky-500 outline-none"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all [&:-webkit-autofill]:shadow-[0_0_0_1000px_#09090b_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
                 />
               </div>
 
@@ -630,9 +644,10 @@ const TestForm = ({ onClose, onSubmit }: { onClose: () => void, onSubmit: (data:
                   type="text" 
                   name="modelo"
                   required
+                  value={formData.modelo || ''}
                   placeholder="Ex: Actros 2651"
                   onChange={handleChange}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-sky-500 outline-none"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all [&:-webkit-autofill]:shadow-[0_0_0_1000px_#09090b_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
                 />
               </div>
 
@@ -642,9 +657,10 @@ const TestForm = ({ onClose, onSubmit }: { onClose: () => void, onSubmit: (data:
                   type="text" 
                   name="cliente"
                   required
+                  value={formData.cliente || ''}
                   placeholder="Nome da empresa ou cliente"
                   onChange={handleChange}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-sky-500 outline-none"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all [&:-webkit-autofill]:shadow-[0_0_0_1000px_#09090b_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
                 />
               </div>
 
@@ -654,9 +670,10 @@ const TestForm = ({ onClose, onSubmit }: { onClose: () => void, onSubmit: (data:
                   type="text" 
                   name="localizacao"
                   required
+                  value={formData.localizacao || ''}
                   placeholder="Ex: Box 04, Pátio B"
                   onChange={handleChange}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-sky-500 outline-none"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all [&:-webkit-autofill]:shadow-[0_0_0_1000px_#09090b_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
                 />
               </div>
             </div>
@@ -669,14 +686,17 @@ const TestForm = ({ onClose, onSubmit }: { onClose: () => void, onSubmit: (data:
 
               <div className="space-y-2">
                 <label className="text-sm text-zinc-400">Motorista</label>
-                <input 
-                  type="text" 
+                <select 
                   name="motorista"
                   required
-                  placeholder="Nome do motorista"
+                  value={formData.motorista}
                   onChange={handleChange}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-white text-sm"
-                />
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all"
+                >
+                  {MOTORISTAS.map(name => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
               </div>
 
               <div className="space-y-2">
@@ -684,12 +704,56 @@ const TestForm = ({ onClose, onSubmit }: { onClose: () => void, onSubmit: (data:
                 <textarea 
                   name="falha"
                   required
+                  value={formData.falha || ''}
                   rows={3}
                   placeholder="Descreva o problema relatado..."
                   onChange={handleChange}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-white text-sm focus:ring-2 focus:ring-sky-500 outline-none resize-none"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-white text-sm focus:ring-2 focus:ring-sky-500 outline-none resize-none transition-all [&:-webkit-autofill]:shadow-[0_0_0_1000px_#09090b_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
                 />
               </div>
+
+              {initialData && (
+                <div className="pt-4 space-y-4 border-t border-zinc-800">
+                  <h3 className="text-xs font-bold text-sky-500 uppercase tracking-widest flex items-center gap-2">
+                    <CheckCircle2 size={14} /> Informações de Execução
+                  </h3>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm text-zinc-400">KM Inicial</label>
+                      <input 
+                        type="number" 
+                        name="kmInicio"
+                        value={formData.kmInicio}
+                        onChange={handleChange}
+                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-white text-sm focus:ring-2 focus:ring-sky-500 outline-none transition-all"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm text-zinc-400">KM Final</label>
+                      <input 
+                        type="number" 
+                        name="kmFim"
+                        value={formData.kmFim}
+                        onChange={handleChange}
+                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-white text-sm focus:ring-2 focus:ring-sky-500 outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm text-zinc-400">Feedback / Resultado</label>
+                    <textarea 
+                      name="feedback"
+                      value={formData.feedback || ''}
+                      rows={2}
+                      placeholder="Resultado do teste..."
+                      onChange={handleChange}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-white text-sm focus:ring-2 focus:ring-sky-500 outline-none resize-none transition-all"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -705,7 +769,7 @@ const TestForm = ({ onClose, onSubmit }: { onClose: () => void, onSubmit: (data:
               type="submit"
               className="px-8 py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl transition-all active:scale-95 shadow-lg shadow-sky-900/20"
             >
-              Agendar Teste
+              {initialData ? 'Salvar Alterações' : 'Agendar Teste'}
             </button>
           </div>
         </form>
@@ -760,7 +824,7 @@ const DriverStartForm = ({ test, onClose, onSubmit }: { test: TestRecord, onClos
                 required
                 value={formData.dataInicio}
                 onChange={(e) => setFormData(prev => ({ ...prev, dataInicio: e.target.value }))}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-white text-sm focus:ring-2 focus:ring-sky-500 outline-none"
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-white text-sm focus:ring-2 focus:ring-sky-500 outline-none [&:-webkit-autofill]:shadow-[0_0_0_1000px_#27272a_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
               />
             </div>
             <div className="space-y-2">
@@ -770,7 +834,7 @@ const DriverStartForm = ({ test, onClose, onSubmit }: { test: TestRecord, onClos
                 required
                 value={formData.horaInicio}
                 onChange={(e) => setFormData(prev => ({ ...prev, horaInicio: e.target.value }))}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-white text-sm focus:ring-2 focus:ring-sky-500 outline-none"
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-white text-sm focus:ring-2 focus:ring-sky-500 outline-none [&:-webkit-autofill]:shadow-[0_0_0_1000px_#27272a_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
               />
             </div>
           </div>
@@ -783,7 +847,7 @@ const DriverStartForm = ({ test, onClose, onSubmit }: { test: TestRecord, onClos
               placeholder="Digite a quilometragem atual"
               value={formData.kmInicio}
               onChange={(e) => setFormData(prev => ({ ...prev, kmInicio: e.target.value }))}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-sky-500 outline-none"
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-sky-500 outline-none [&:-webkit-autofill]:shadow-[0_0_0_1000px_#27272a_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
             />
           </div>
 
@@ -814,6 +878,7 @@ export default function FieldTestDashboard() {
   const [isVerified, setIsVerified] = useState(false);
   const [records, setRecords] = useState<TestRecord[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingTest, setEditingTest] = useState<TestRecord | null>(null);
   const [executingTest, setExecutingTest] = useState<TestRecord | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isMounted, setIsMounted] = useState(false);
@@ -858,6 +923,20 @@ export default function FieldTestDashboard() {
     };
     setRecords(prev => [recordWithId, ...prev]);
     setIsFormOpen(false);
+  };
+
+  const handleUpdateRecord = (updatedData: Omit<TestRecord, 'id'>) => {
+    if (!editingTest) return;
+    setRecords(prev => prev.map(r => 
+      r.id === editingTest.id ? { ...r, ...updatedData } : r
+    ));
+    setEditingTest(null);
+  };
+
+  const handleDeleteRecord = (id: string) => {
+    if (confirm('Tem certeza que deseja apagar este teste?')) {
+      setRecords(prev => prev.filter(r => r.id !== id));
+    }
   };
 
   const isDriver = currentUser?.role?.toLowerCase().trim() === 'motorista de teste';
@@ -1033,18 +1112,18 @@ export default function FieldTestDashboard() {
                   <tr key={record.id} className="hover:bg-zinc-800/30 transition-colors group">
                     <td className="px-4 py-4">
                       <span className={cn(
-                        "px-2 py-1 rounded text-[10px] font-bold uppercase",
-                        "bg-zinc-800 text-zinc-300 border border-zinc-700"
+                        "px-2 py-1 rounded text-xs font-bold uppercase",
+                        "bg-zinc-800 text-white border border-zinc-700"
                       )}>
                         {record.solicitante}
                       </span>
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-2 group/percurso relative">
-                        <div className="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-white border border-zinc-700">
+                        <div className="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-bold text-white border border-zinc-700">
                           {record.percurso}
                         </div>
-                        <span className="text-[10px] text-zinc-500 truncate max-w-[100px]">
+                        <span className="text-xs font-bold text-white truncate max-w-[100px]">
                           {PERCURSOS.find(p => p.id === Number(record.percurso))?.name}
                         </span>
                       </div>
@@ -1054,52 +1133,52 @@ export default function FieldTestDashboard() {
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex flex-col">
-                        <span className="text-sm font-bold text-white">{record.placa}</span>
-                        <span className="text-[10px] text-zinc-500">{record.modelo}</span>
+                        <span className="text-xs font-bold text-white">{record.placa}</span>
+                        <span className="text-xs font-bold text-white">{record.modelo}</span>
                       </div>
                     </td>
                     <td className="px-4 py-4">
-                      <span className="text-sm text-zinc-300">{record.cliente}</span>
+                      <span className="text-xs font-bold text-white">{record.cliente}</span>
                     </td>
                     <td className="px-4 py-4">
-                      <p className="text-xs text-zinc-400 leading-relaxed">{record.falha}</p>
+                      <p className="text-xs font-bold text-white leading-relaxed">{record.falha}</p>
                     </td>
                     <td className="px-4 py-4">
-                      <div className="flex items-center gap-1.5 text-xs text-zinc-400">
-                        <MapPin size={12} className="text-zinc-600" />
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-white">
+                        <MapPin size={12} className="text-zinc-500" />
                         {record.localizacao}
                       </div>
                     </td>
                     <td className="px-4 py-4">
-                      <div className="flex flex-col text-[10px]">
-                        <span className="text-zinc-300">{record.dataInicio}</span>
-                        <span className="text-zinc-500">{record.horaInicio}</span>
+                      <div className="flex flex-col text-xs font-bold">
+                        <span className="text-white">{record.dataInicio}</span>
+                        <span className="text-white/70">{record.horaInicio}</span>
                       </div>
                     </td>
                     <td className="px-4 py-4">
-                      <div className="flex flex-col text-[10px]">
-                        <span className="text-zinc-300">{record.dataFim}</span>
-                        <span className="text-zinc-500">{record.horaFim}</span>
+                      <div className="flex flex-col text-xs font-bold">
+                        <span className="text-white">{record.dataFim}</span>
+                        <span className="text-white/70">{record.horaFim}</span>
                       </div>
                     </td>
                     <td className="px-4 py-4">
-                      <div className="flex flex-col text-[10px]">
-                        <span className="text-zinc-300">Ini: {record.kmInicio}</span>
-                        <span className="text-zinc-500">Fim: {record.kmFim || '-'}</span>
+                      <div className="flex flex-col text-xs font-bold">
+                        <span className="text-white">Ini: {record.kmInicio}</span>
+                        <span className="text-white/70">Fim: {record.kmFim || '-'}</span>
                       </div>
                     </td>
                     <td className="px-4 py-4">
-                      <div className="flex items-center gap-2 text-xs text-zinc-300">
-                        <div className="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-zinc-500">
+                      <div className="flex items-center gap-2 text-xs font-bold text-white">
+                        <div className="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-zinc-400">
                           {record.motorista.charAt(0)}
                         </div>
                         {record.motorista}
                       </div>
                     </td>
                     <td className="px-4 py-4">
-                      <div className="flex flex-col text-[10px]">
-                        <span className="text-zinc-300">{record.dataSolicitacao}</span>
-                        <span className="text-zinc-500">{record.horaSolicitacao}</span>
+                      <div className="flex flex-col text-xs font-bold">
+                        <span className="text-white">{record.dataSolicitacao}</span>
+                        <span className="text-white/70">{record.horaSolicitacao}</span>
                       </div>
                     </td>
                     <td className="px-4 py-4">
@@ -1108,22 +1187,43 @@ export default function FieldTestDashboard() {
                           "w-2 h-2 rounded-full shrink-0",
                           record.feedback.includes('Aguardando') ? "bg-amber-500 animate-pulse" : "bg-sky-500"
                         )} />
-                        <span className="text-xs text-zinc-400 italic leading-relaxed">{record.feedback}</span>
+                        <span className="text-xs font-bold text-white italic leading-relaxed">{record.feedback}</span>
                       </div>
                     </td>
                     <td className="px-4 py-4">
-                      {isDriver && record.dataInicio === '-' && (
-                        <button 
-                          onClick={() => setExecutingTest(record)}
-                          className="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center gap-2"
-                        >
-                          <Play size={12} fill="currentColor" />
-                          INICIAR
-                        </button>
-                      )}
-                      {!isDriver && (
-                        <span className="text-[10px] text-zinc-600 italic">Sem ações</span>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {isDriver && record.dataInicio === '-' && (
+                          <button 
+                            onClick={() => setExecutingTest(record)}
+                            className="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center gap-2"
+                          >
+                            <Play size={12} fill="currentColor" />
+                            INICIAR
+                          </button>
+                        )}
+                        {currentUser && record.solicitante && (currentUser.firstName + " " + currentUser.lastName).localeCompare(record.solicitante, undefined, { sensitivity: 'base' }) === 0 && (
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => setEditingTest(record)}
+                              className="px-3 py-1.5 bg-amber-600/10 hover:bg-amber-600 text-amber-500 hover:text-white text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center gap-2 border border-amber-500/20 hover:border-amber-600"
+                            >
+                              <Edit size={12} />
+                              EDITAR
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteRecord(record.id)}
+                              className="px-3 py-1.5 bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center gap-2 border border-red-500/20 hover:border-red-600"
+                              title="Apagar meu teste"
+                            >
+                              <Trash2 size={12} />
+                              APAGAR
+                            </button>
+                          </div>
+                        )}
+                        {!isDriver && currentUser && record.solicitante && (currentUser.firstName + " " + currentUser.lastName).localeCompare(record.solicitante, undefined, { sensitivity: 'base' }) !== 0 && (
+                          <span className="text-[10px] text-zinc-600 italic">Sem ações</span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1148,10 +1248,16 @@ export default function FieldTestDashboard() {
 
       {/* Modals */}
       <AnimatePresence>
-        {isFormOpen && (
+        {(isFormOpen || editingTest) && (
           <TestForm 
-            onClose={() => setIsFormOpen(false)} 
-            onSubmit={handleAddRecord}
+            key={editingTest?.id || 'new'}
+            currentUser={currentUser}
+            onClose={() => {
+              setIsFormOpen(false);
+              setEditingTest(null);
+            }} 
+            onSubmit={editingTest ? handleUpdateRecord : handleAddRecord}
+            initialData={editingTest || undefined}
           />
         )}
         {executingTest && (
