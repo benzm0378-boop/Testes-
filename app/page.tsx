@@ -16,7 +16,8 @@ import {
   Search,
   Filter,
   ChevronRight,
-  LayoutDashboard
+  LayoutDashboard,
+  LogOut
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -98,7 +99,13 @@ const INITIAL_DATA: TestRecord[] = [
 // --- Components ---
 
 const WorkshopCheck = ({ onVerified }: { onVerified: () => void }) => {
-  const [status, setStatus] = useState<'pending' | 'denied'>('pending');
+  const [status, setStatus] = useState<'pending' | 'denied' | 'verified'>('pending');
+
+  const handleVerify = () => {
+    setStatus('verified');
+    // Pequeno delay para o usuário ver a cor verde antes de entrar no sistema
+    setTimeout(onVerified, 300);
+  };
 
   return (
     <div className="fixed inset-0 bg-zinc-950 flex items-center justify-center p-4 z-50">
@@ -107,13 +114,16 @@ const WorkshopCheck = ({ onVerified }: { onVerified: () => void }) => {
         animate={{ opacity: 1, y: 0 }}
         className="max-w-md w-full bg-zinc-900 border border-zinc-800 p-8 rounded-2xl shadow-2xl text-center"
       >
-        <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl border border-zinc-800">
+        <div className="w-32 h-32 bg-black rounded-full flex items-center justify-center mx-auto mb-8 shadow-[0_0_50px_rgba(255,255,255,0.05)] border border-zinc-800 p-4 relative group">
+          <div className="absolute inset-0 bg-gradient-to-b from-zinc-800/20 to-transparent rounded-full opacity-50" />
           <Image 
-            src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Mercedes-Benz_Logo_2010.svg/256px-Mercedes-Benz_Logo_2010.svg.png"
-            alt="Mercedes-Benz Logo"
-            width={60}
-            height={60}
-            className="object-contain"
+            src="https://www.carlogos.org/car-logos/mercedes-benz-logo.png"
+            alt="Mercedes-Benz Star"
+            width={100}
+            height={100}
+            className="object-contain relative z-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]"
+            unoptimized
+            priority
             referrerPolicy="no-referrer"
           />
         </div>
@@ -126,14 +136,24 @@ const WorkshopCheck = ({ onVerified }: { onVerified: () => void }) => {
           
           <div className="grid grid-cols-2 gap-4">
             <button
-              onClick={onVerified}
-              className="py-3 px-6 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition-all active:scale-95"
+              onClick={handleVerify}
+              className={cn(
+                "py-3 px-6 font-bold rounded-xl transition-all active:scale-95",
+                status === 'verified'
+                  ? "bg-emerald-600 text-white shadow-lg shadow-emerald-900/20"
+                  : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+              )}
             >
               Sim, está organizada
             </button>
             <button
               onClick={() => setStatus('denied')}
-              className="py-3 px-6 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold rounded-xl transition-all active:scale-95"
+              className={cn(
+                "py-3 px-6 font-bold rounded-xl transition-all active:scale-95",
+                status === 'denied' 
+                  ? "bg-red-600 text-white shadow-lg shadow-red-900/20" 
+                  : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+              )}
             >
               Não, ainda não
             </button>
@@ -471,24 +491,34 @@ export default function FieldTestDashboard() {
       {/* Header */}
       <header className="sticky top-0 z-30 bg-zinc-950/80 backdrop-blur-md border-b border-zinc-800 px-6 py-4">
         <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-lg border border-zinc-800 overflow-hidden">
+          <div className="flex flex-col items-start gap-4">
+            <div className="w-16 h-16 bg-black rounded-2xl flex items-center justify-center shadow-2xl border border-zinc-800 overflow-hidden p-2 group transition-transform hover:scale-105">
               <Image 
-                src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Mercedes-Benz_Logo_2010.svg/256px-Mercedes-Benz_Logo_2010.svg.png"
-                alt="Mercedes-Benz Logo"
-                width={40}
-                height={40}
-                className="object-contain"
+                src="https://www.carlogos.org/car-logos/mercedes-benz-logo.png"
+                alt="Mercedes-Benz Star"
+                width={48}
+                height={48}
+                className="object-contain drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]"
+                unoptimized
+                priority
                 referrerPolicy="no-referrer"
               />
             </div>
-            <div>
-              <h1 className="text-xl font-bold text-white tracking-tight">Controle de Testes de Percurso</h1>
-              <p className="text-xs text-zinc-500 font-medium uppercase tracking-wider">Oficina</p>
+            <div className="flex flex-col">
+              <h1 className="text-2xl font-bold text-white tracking-tight leading-none mb-1">Controle de Testes de Percurso</h1>
+              <p className="text-xs text-zinc-500 font-semibold uppercase tracking-[0.2em]">Oficina Mercedes-Benz</p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setIsVerified(false)}
+              className="flex items-center gap-2 px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800 rounded-xl transition-all text-sm font-medium"
+              title="Voltar para Organização da Oficina"
+            >
+              <LogOut size={18} />
+              <span className="hidden sm:inline">Sair/ Organizar oficina</span>
+            </button>
             <div className="relative group">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-emerald-500 transition-colors" size={18} />
               <input 
