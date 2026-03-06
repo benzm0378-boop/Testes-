@@ -17,7 +17,10 @@ import {
   Filter,
   ChevronRight,
   LayoutDashboard,
-  LogOut
+  LogOut,
+  Lock,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -97,6 +100,118 @@ const INITIAL_DATA: TestRecord[] = [
 ];
 
 // --- Components ---
+
+const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    // Simulação de login
+    setTimeout(() => {
+      onLogin();
+      setIsLoading(false);
+    }, 800);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-zinc-950 flex items-center justify-center p-4 z-50">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="max-w-md w-full bg-zinc-900 border border-zinc-800 p-8 rounded-2xl shadow-2xl"
+      >
+        <div className="w-32 h-32 bg-black rounded-full flex items-center justify-center mx-auto mb-8 shadow-[0_0_50px_rgba(255,255,255,0.05)] border border-zinc-800 p-4 relative group">
+          <div className="absolute inset-0 bg-gradient-to-b from-zinc-800/20 to-transparent rounded-full opacity-50" />
+          <Image 
+            src="https://www.carlogos.org/car-logos/mercedes-benz-logo.png"
+            alt="Mercedes-Benz Star"
+            width={100}
+            height={100}
+            className="object-contain relative z-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]"
+            unoptimized
+            priority
+            referrerPolicy="no-referrer"
+          />
+        </div>
+
+        <div className="text-center mb-8">
+          <h2 className="text-2xl font-bold text-white mb-2">Acesso ao Sistema</h2>
+          <p className="text-zinc-500 text-sm">Entre com suas credenciais para continuar</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider ml-1">Usuário</label>
+            <div className="relative group">
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-emerald-500 transition-colors" size={18} />
+              <input 
+                type="text"
+                required
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Digite seu usuário"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all placeholder:text-zinc-700"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider ml-1">Senha</label>
+            <div className="relative group">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-emerald-500 transition-colors" size={18} />
+              <input 
+                type={showPassword ? "text" : "password"}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-12 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all placeholder:text-zinc-700"
+              />
+              <button 
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between px-1">
+            <label className="flex items-center gap-2 cursor-pointer group">
+              <input type="checkbox" className="w-4 h-4 rounded border-zinc-800 bg-zinc-950 text-emerald-600 focus:ring-emerald-500 focus:ring-offset-zinc-900" />
+              <span className="text-xs text-zinc-500 group-hover:text-zinc-300 transition-colors">Lembrar de mim</span>
+            </label>
+            <button type="button" className="text-xs text-emerald-500 hover:text-emerald-400 font-medium transition-colors">Esqueceu a senha?</button>
+          </div>
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-800 disabled:text-zinc-500 text-white font-bold rounded-xl transition-all active:scale-[0.98] shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-2"
+          >
+            {isLoading ? (
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <>
+                <span>ENTRAR NO SISTEMA</span>
+                <ChevronRight size={18} />
+              </>
+            )}
+          </button>
+        </form>
+
+        <p className="mt-8 text-center text-[10px] text-zinc-600 uppercase tracking-[0.2em]">
+          © 2024 Oficina Mercedes-Benz • Acesso Restrito
+        </p>
+      </motion.div>
+    </div>
+  );
+};
 
 const WorkshopCheck = ({ onVerified }: { onVerified: () => void }) => {
   const [status, setStatus] = useState<'pending' | 'denied' | 'verified'>('pending');
@@ -431,6 +546,7 @@ const TestForm = ({ onClose, onSubmit }: { onClose: () => void, onSubmit: (data:
 };
 
 export default function FieldTestDashboard() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
   const [records, setRecords] = useState<TestRecord[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -482,6 +598,10 @@ export default function FieldTestDashboard() {
     r.motorista.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  if (!isAuthenticated) {
+    return <LoginScreen onLogin={() => setIsAuthenticated(true)} />;
+  }
+
   if (!isVerified) {
     return <WorkshopCheck onVerified={() => setIsVerified(true)} />;
   }
@@ -512,7 +632,10 @@ export default function FieldTestDashboard() {
 
           <div className="flex items-center gap-3">
             <button 
-              onClick={() => setIsVerified(false)}
+              onClick={() => {
+                setIsVerified(false);
+                setIsAuthenticated(false);
+              }}
               className="flex items-center gap-2 px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800 rounded-xl transition-all text-sm font-medium"
               title="Voltar para Organização da Oficina"
             >
