@@ -102,36 +102,84 @@ const INITIAL_DATA: TestRecord[] = [
 // --- Components ---
 
 const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
+  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const getUsers = () => {
+    if (typeof window === 'undefined') return [];
+    const saved = localStorage.getItem('workshop_users');
+    return saved ? JSON.parse(saved) : [];
+  };
+
+  const saveUser = (user: any) => {
+    const users = getUsers();
+    users.push(user);
+    localStorage.setItem('workshop_users', JSON.stringify(users));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
     setIsLoading(true);
-    // Simulação de login
+
     setTimeout(() => {
-      onLogin();
+      const users = getUsers();
+
+      if (mode === 'signup') {
+        if (password !== confirmPassword) {
+          setError('As senhas não coincidem');
+          setIsLoading(false);
+          return;
+        }
+
+        if (users.find((u: any) => u.username === username)) {
+          setError('Este usuário já existe');
+          setIsLoading(false);
+          return;
+        }
+
+        saveUser({ firstName, lastName, username, password });
+        setMode('login');
+        setError('');
+        alert('Cadastro realizado com sucesso! Faça login para continuar.');
+      } else {
+        const user = users.find((u: any) => u.username === username && u.password === password);
+        if (user) {
+          onLogin();
+        } else {
+          setError('Usuário ou senha incorretos');
+        }
+      }
       setIsLoading(false);
     }, 800);
   };
 
+  const handleForgotPassword = () => {
+    alert('Funcionalidade de recuperação de senha: Entre em contato com o administrador do sistema.');
+  };
+
   return (
-    <div className="fixed inset-0 bg-zinc-950 flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-zinc-950 flex items-center justify-center p-4 z-50 overflow-y-auto">
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="max-w-md w-full bg-zinc-900 border border-zinc-800 p-8 rounded-2xl shadow-2xl"
+        className="max-w-md w-full bg-zinc-900 border border-zinc-800 p-8 rounded-2xl shadow-2xl my-8"
       >
-        <div className="w-32 h-32 bg-black rounded-full flex items-center justify-center mx-auto mb-8 shadow-[0_0_50px_rgba(255,255,255,0.05)] border border-zinc-800 p-4 relative group">
+        <div className="w-24 h-24 bg-black rounded-full flex items-center justify-center mx-auto mb-6 shadow-[0_0_40px_rgba(255,255,255,0.05)] border border-zinc-800 p-3 relative group">
           <div className="absolute inset-0 bg-gradient-to-b from-zinc-800/20 to-transparent rounded-full opacity-50" />
           <Image 
             src="https://www.carlogos.org/car-logos/mercedes-benz-logo.png"
             alt="Mercedes-Benz Star"
-            width={100}
-            height={100}
-            className="object-contain relative z-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]"
+            width={80}
+            height={80}
+            className="object-contain relative z-10 drop-shadow-[0_0_12px_rgba(255,255,255,0.3)]"
             unoptimized
             priority
             referrerPolicy="no-referrer"
@@ -139,13 +187,57 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
         </div>
 
         <div className="text-center mb-8">
-          <h2 className="text-2xl font-bold text-white mb-2">Acesso ao Sistema</h2>
-          <p className="text-zinc-500 text-sm">Entre com suas credenciais para continuar</p>
+          <h2 className="text-2xl font-bold text-white mb-2">
+            {mode === 'login' ? 'Acesso ao Sistema' : 'Criar Conta'}
+          </h2>
+          <p className="text-zinc-500 text-sm">
+            {mode === 'login' 
+              ? 'Entre com suas credenciais para continuar' 
+              : 'Preencha os dados abaixo para se cadastrar'}
+          </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        {error && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 p-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-3 text-red-500 text-sm"
+          >
+            <AlertCircle size={18} />
+            {error}
+          </motion.div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {mode === 'signup' && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider ml-1">Nome</label>
+                <input 
+                  type="text"
+                  required
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="Nome"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all placeholder:text-zinc-700 text-sm"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider ml-1">Sobrenome</label>
+                <input 
+                  type="text"
+                  required
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder="Sobrenome"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all placeholder:text-zinc-700 text-sm"
+                />
+              </div>
+            </div>
+          )}
+
           <div className="space-y-2">
-            <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider ml-1">Usuário</label>
+            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider ml-1">Usuário</label>
             <div className="relative group">
               <User className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-emerald-500 transition-colors" size={18} />
               <input 
@@ -154,13 +246,13 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Digite seu usuário"
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all placeholder:text-zinc-700"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all placeholder:text-zinc-700 text-sm"
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider ml-1">Senha</label>
+            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider ml-1">Senha</label>
             <div className="relative group">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-emerald-500 transition-colors" size={18} />
               <input 
@@ -169,7 +261,7 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-12 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all placeholder:text-zinc-700"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-12 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all placeholder:text-zinc-700 text-sm"
               />
               <button 
                 type="button"
@@ -181,32 +273,75 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
             </div>
           </div>
 
-          <div className="flex items-center justify-between px-1">
-            <label className="flex items-center gap-2 cursor-pointer group">
-              <input type="checkbox" className="w-4 h-4 rounded border-zinc-800 bg-zinc-950 text-emerald-600 focus:ring-emerald-500 focus:ring-offset-zinc-900" />
-              <span className="text-xs text-zinc-500 group-hover:text-zinc-300 transition-colors">Lembrar de mim</span>
-            </label>
-            <button type="button" className="text-xs text-emerald-500 hover:text-emerald-400 font-medium transition-colors">Esqueceu a senha?</button>
-          </div>
+          {mode === 'signup' && (
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider ml-1">Confirmar Senha</label>
+              <div className="relative group">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-emerald-500 transition-colors" size={18} />
+                <input 
+                  type={showPassword ? "text" : "password"}
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all placeholder:text-zinc-700 text-sm"
+                />
+              </div>
+            </div>
+          )}
+
+          {mode === 'login' && (
+            <div className="flex items-center justify-between px-1">
+              <label className="flex items-center gap-2 cursor-pointer group">
+                <input type="checkbox" className="w-4 h-4 rounded border-zinc-800 bg-zinc-950 text-emerald-600 focus:ring-emerald-500 focus:ring-offset-zinc-900" />
+                <span className="text-xs text-zinc-500 group-hover:text-zinc-300 transition-colors">Lembrar</span>
+              </label>
+              <button 
+                type="button" 
+                onClick={handleForgotPassword}
+                className="text-xs text-emerald-500 hover:text-emerald-400 font-medium transition-colors"
+              >
+                Esqueceu a senha?
+              </button>
+            </div>
+          )}
 
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-800 disabled:text-zinc-500 text-white font-bold rounded-xl transition-all active:scale-[0.98] shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-2"
+            className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-800 disabled:text-zinc-500 text-white font-bold rounded-xl transition-all active:scale-[0.98] shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-2 mt-4"
           >
             {isLoading ? (
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (
               <>
-                <span>ENTRAR NO SISTEMA</span>
+                <span className="uppercase tracking-widest text-sm">
+                  {mode === 'login' ? 'Entrar no Sistema' : 'Finalizar Cadastro'}
+                </span>
                 <ChevronRight size={18} />
               </>
             )}
           </button>
         </form>
 
+        <div className="mt-6 text-center">
+          <button 
+            onClick={() => {
+              setMode(mode === 'login' ? 'signup' : 'login');
+              setError('');
+            }}
+            className="text-sm text-zinc-400 hover:text-white transition-colors"
+          >
+            {mode === 'login' ? (
+              <>Não tem uma conta? <span className="text-emerald-500 font-bold">Cadastre-se</span></>
+            ) : (
+              <>Já tem uma conta? <span className="text-emerald-500 font-bold">Faça Login</span></>
+            )}
+          </button>
+        </div>
+
         <p className="mt-8 text-center text-[10px] text-zinc-600 uppercase tracking-[0.2em]">
-          © 2024 Oficina Mercedes-Benz • Acesso Restrito
+          MinasMáquinas S/A • Acesso Restrito
         </p>
       </motion.div>
     </div>
@@ -626,7 +761,7 @@ export default function FieldTestDashboard() {
             </div>
             <div className="flex flex-col">
               <h1 className="text-2xl font-bold text-white tracking-tight leading-none mb-1">Controle de Testes de Percurso</h1>
-              <p className="text-xs text-zinc-500 font-semibold uppercase tracking-[0.2em]">Oficina Mercedes-Benz</p>
+              <p className="text-xs text-zinc-500 font-semibold uppercase tracking-[0.2em]">MinasMáquinas S/A</p>
             </div>
           </div>
 
