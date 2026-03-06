@@ -106,6 +106,8 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [username, setUsername] = useState('');
+  const [role, setRole] = useState('');
+  const [registration, setRegistration] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -145,7 +147,7 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
           return;
         }
 
-        saveUser({ firstName, lastName, username, password });
+        saveUser({ firstName, lastName, username, role, registration: password, password });
         setMode('login');
         setError('');
         alert('Cadastro realizado com sucesso! Faça login para continuar.');
@@ -236,23 +238,55 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
             </div>
           )}
 
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider ml-1">Usuário</label>
-            <div className="relative group">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-emerald-500 transition-colors" size={18} />
-              <input 
-                type="text"
-                required
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Digite seu usuário"
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all placeholder:text-zinc-700 text-sm"
-              />
+          {mode === 'signup' ? (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider ml-1">Usuário</label>
+                <div className="relative group">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-emerald-500 transition-colors" size={18} />
+                  <input 
+                    type="text"
+                    required
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Digite seu usuário"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all placeholder:text-zinc-700 text-sm"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider ml-1">Função</label>
+                <input 
+                  type="text"
+                  required
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  placeholder="Ex: Motorista de teste"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all placeholder:text-zinc-700 text-sm"
+                />
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider ml-1">Usuário</label>
+              <div className="relative group">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-emerald-500 transition-colors" size={18} />
+                <input 
+                  type="text"
+                  required
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Digite seu usuário"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all placeholder:text-zinc-700 text-sm"
+                />
+              </div>
+            </div>
+          )}
 
           <div className="space-y-2">
-            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider ml-1">Senha</label>
+            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider ml-1">
+              {mode === 'signup' ? 'Senha (Matrícula)' : 'Senha'}
+            </label>
             <div className="relative group">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-emerald-500 transition-colors" size={18} />
               <input 
@@ -266,7 +300,7 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
               <button 
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -275,7 +309,7 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
 
           {mode === 'signup' && (
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider ml-1">Confirmar Senha</label>
+              <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider ml-1">Confirmar Senha (Matrícula)</label>
               <div className="relative group">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-emerald-500 transition-colors" size={18} />
                 <input 
@@ -284,7 +318,7 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all placeholder:text-zinc-700 text-sm"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-12 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all placeholder:text-zinc-700 text-sm"
                 />
               </div>
             </div>
@@ -294,22 +328,15 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
             <div className="flex items-center justify-between px-1">
               <label className="flex items-center gap-2 cursor-pointer group">
                 <input type="checkbox" className="w-4 h-4 rounded border-zinc-800 bg-zinc-950 text-emerald-600 focus:ring-emerald-500 focus:ring-offset-zinc-900" />
-                <span className="text-xs text-zinc-500 group-hover:text-zinc-300 transition-colors">Lembrar</span>
+                <span className="text-xs text-emerald-500 group-hover:text-emerald-400 font-medium transition-colors">Salvar dados de acesso</span>
               </label>
-              <button 
-                type="button" 
-                onClick={handleForgotPassword}
-                className="text-xs text-emerald-500 hover:text-emerald-400 font-medium transition-colors"
-              >
-                Esqueceu a senha?
-              </button>
             </div>
           )}
 
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-800 disabled:text-zinc-500 text-white font-bold rounded-xl transition-all active:scale-[0.98] shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-2 mt-4"
+            className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-800 disabled:text-zinc-500 text-white font-bold rounded-xl transition-all active:scale-[0.98] shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-2 mt-4 cursor-pointer disabled:cursor-not-allowed"
           >
             {isLoading ? (
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -318,26 +345,41 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
                 <span className="uppercase tracking-widest text-sm">
                   {mode === 'login' ? 'Entrar no Sistema' : 'Finalizar Cadastro'}
                 </span>
-                <ChevronRight size={18} />
               </>
             )}
           </button>
         </form>
 
-        <div className="mt-6 text-center">
-          <button 
-            onClick={() => {
-              setMode(mode === 'login' ? 'signup' : 'login');
-              setError('');
-            }}
-            className="text-sm text-zinc-400 hover:text-white transition-colors"
-          >
-            {mode === 'login' ? (
-              <>Não tem uma conta? <span className="text-emerald-500 font-bold">Cadastre-se</span></>
-            ) : (
-              <>Já tem uma conta? <span className="text-emerald-500 font-bold">Faça Login</span></>
-            )}
-          </button>
+        <div className="mt-6 text-center text-sm text-zinc-400">
+          {mode === 'login' ? (
+            <>
+              Não tem uma conta?{' '}
+              <button 
+                type="button"
+                onClick={() => {
+                  setMode('signup');
+                  setError('');
+                }}
+                className="text-emerald-500 font-bold hover:text-emerald-400 transition-colors cursor-pointer"
+              >
+                Cadastre-se
+              </button>
+            </>
+          ) : (
+            <>
+              Já tem uma conta?{' '}
+              <button 
+                type="button"
+                onClick={() => {
+                  setMode('login');
+                  setError('');
+                }}
+                className="text-emerald-500 font-bold hover:text-emerald-400 transition-colors cursor-pointer"
+              >
+                Faça Login
+              </button>
+            </>
+          )}
         </div>
 
         <p className="mt-8 text-center text-[10px] text-zinc-600 uppercase tracking-[0.2em]">
@@ -388,7 +430,7 @@ const WorkshopCheck = ({ onVerified }: { onVerified: () => void }) => {
             <button
               onClick={handleVerify}
               className={cn(
-                "py-3 px-6 font-bold rounded-xl transition-all active:scale-95",
+                "py-3 px-6 font-bold rounded-xl transition-all active:scale-95 cursor-pointer",
                 status === 'verified'
                   ? "bg-emerald-600 text-white shadow-lg shadow-emerald-900/20"
                   : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
@@ -399,7 +441,7 @@ const WorkshopCheck = ({ onVerified }: { onVerified: () => void }) => {
             <button
               onClick={() => setStatus('denied')}
               className={cn(
-                "py-3 px-6 font-bold rounded-xl transition-all active:scale-95",
+                "py-3 px-6 font-bold rounded-xl transition-all active:scale-95 cursor-pointer",
                 status === 'denied' 
                   ? "bg-red-600 text-white shadow-lg shadow-red-900/20" 
                   : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
