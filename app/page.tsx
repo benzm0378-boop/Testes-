@@ -20,7 +20,8 @@ import {
   LogOut,
   Lock,
   Eye,
-  EyeOff
+  EyeOff,
+  Play
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -29,9 +30,21 @@ import Image from 'next/image';
 
 // --- Types ---
 
-type Solicitante = 'André' | 'Juan' | 'Paulo' | 'Wender' | 'Andreza' | 'Rômulo' | 'Júlio';
+type Solicitante = 'André' | 'Juan' | 'Paulo' | 'Wender' | 'Andreza' | 'Rômulo' | 'Júlio' | 'Jairo';
 
-const SOLICITANTES: Solicitante[] = ['André', 'Juan', 'Paulo', 'Wender', 'Andreza', 'Rômulo', 'Júlio'];
+const SOLICITANTES: Solicitante[] = ['André', 'Juan', 'Paulo', 'Wender', 'Andreza', 'Rômulo', 'Júlio', 'Jairo'];
+
+const PERCURSOS = [
+  { id: 1, name: 'BAIRRO FLAMENGO', distance: '2 Km' },
+  { id: 2, name: 'PRAÇA DA CEMIG', distance: '8,5 Km' },
+  { id: 3, name: 'VIADUTO DA FIAT', distance: '22 Km' },
+  { id: 4, name: 'TREVO OLHOS D\'AGUA', distance: '30 Km' },
+  { id: 5, name: 'TREVO MG050 (Juatuba)', distance: '40 Km' },
+  { id: 6, name: 'SÃO JOAQUIM DE BICAS', distance: '66 Km' },
+  { id: 7, name: 'TREVO ALPHAVILLE', distance: '70 Km' },
+  { id: 8, name: 'SERRA DE IGARAPÉ', distance: '84 Km' },
+  { id: 9, name: 'OUTRO (Conforme acordo)', distance: '' },
+];
 
 interface TestRecord {
   id: string;
@@ -50,6 +63,7 @@ interface TestRecord {
   kmFim: number;
   feedback: string;
   motorista: string;
+  os: string;
   dataSolicitacao: string;
   horaSolicitacao: string;
 }
@@ -74,6 +88,7 @@ const INITIAL_DATA: TestRecord[] = [
     kmFim: 150350,
     feedback: 'Teste concluído, ruído identificado no batente.',
     motorista: 'João Santos',
+    os: '12345',
     dataSolicitacao: '2024-03-09',
     horaSolicitacao: '15:30',
   },
@@ -94,6 +109,7 @@ const INITIAL_DATA: TestRecord[] = [
     kmFim: 85480,
     feedback: 'Aguardando análise de dados do scanner.',
     motorista: 'Ricardo Lima',
+    os: '12346',
     dataSolicitacao: '2024-03-10',
     horaSolicitacao: '09:15',
   }
@@ -101,7 +117,7 @@ const INITIAL_DATA: TestRecord[] = [
 
 // --- Components ---
 
-const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
+const LoginScreen = ({ onLogin }: { onLogin: (user: any) => void }) => {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -154,7 +170,7 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
       } else {
         const user = users.find((u: any) => u.username === username && u.password === password);
         if (user) {
-          onLogin();
+          onLogin(user);
         } else {
           setError('Usuário ou senha incorretos');
         }
@@ -221,7 +237,7 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                   placeholder="Nome"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all placeholder:text-zinc-700 text-sm"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all placeholder:text-zinc-700 text-sm"
                 />
               </div>
               <div className="space-y-2">
@@ -232,7 +248,7 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   placeholder="Sobrenome"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all placeholder:text-zinc-700 text-sm"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all placeholder:text-zinc-700 text-sm"
                 />
               </div>
             </div>
@@ -243,14 +259,14 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider ml-1">Usuário</label>
                 <div className="relative group">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-emerald-500 transition-colors" size={18} />
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-sky-500 transition-colors" size={18} />
                   <input 
                     type="text"
                     required
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder="Digite seu usuário"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all placeholder:text-zinc-700 text-sm"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all placeholder:text-zinc-700 text-sm"
                   />
                 </div>
               </div>
@@ -262,7 +278,7 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
                   placeholder="Ex: Motorista de teste"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all placeholder:text-zinc-700 text-sm"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all placeholder:text-zinc-700 text-sm"
                 />
               </div>
             </div>
@@ -270,14 +286,14 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider ml-1">Usuário</label>
               <div className="relative group">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-emerald-500 transition-colors" size={18} />
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-sky-500 transition-colors" size={18} />
                 <input 
                   type="text"
                   required
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="Digite seu usuário"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all placeholder:text-zinc-700 text-sm"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all placeholder:text-zinc-700 text-sm"
                 />
               </div>
             </div>
@@ -288,14 +304,14 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
               {mode === 'signup' ? 'Senha (Matrícula)' : 'Senha'}
             </label>
             <div className="relative group">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-emerald-500 transition-colors" size={18} />
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-sky-500 transition-colors" size={18} />
               <input 
                 type={showPassword ? "text" : "password"}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-12 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all placeholder:text-zinc-700 text-sm"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-12 py-3 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all placeholder:text-zinc-700 text-sm"
               />
               <button 
                 type="button"
@@ -311,14 +327,14 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider ml-1">Confirmar Senha (Matrícula)</label>
               <div className="relative group">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-emerald-500 transition-colors" size={18} />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-sky-500 transition-colors" size={18} />
                 <input 
                   type={showPassword ? "text" : "password"}
                   required
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-12 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all placeholder:text-zinc-700 text-sm"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-12 py-3 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all placeholder:text-zinc-700 text-sm"
                 />
               </div>
             </div>
@@ -327,8 +343,8 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
           {mode === 'login' && (
             <div className="flex items-center justify-between px-1">
               <label className="flex items-center gap-2 cursor-pointer group">
-                <input type="checkbox" className="w-4 h-4 rounded border-zinc-800 bg-zinc-950 text-emerald-600 focus:ring-emerald-500 focus:ring-offset-zinc-900" />
-                <span className="text-xs text-emerald-500 group-hover:text-emerald-400 font-medium transition-colors">Salvar dados de acesso</span>
+                <input type="checkbox" defaultChecked className="w-4 h-4 rounded border-zinc-800 bg-zinc-950 text-sky-600 focus:ring-sky-500 focus:ring-offset-zinc-900" />
+                <span className="text-xs text-sky-500 group-hover:text-sky-400 font-medium transition-colors">Salvar dados de acesso</span>
               </label>
             </div>
           )}
@@ -336,7 +352,7 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-800 disabled:text-zinc-500 text-white font-bold rounded-xl transition-all active:scale-[0.98] shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-2 mt-4 cursor-pointer disabled:cursor-not-allowed"
+            className="w-full py-4 bg-sky-600 hover:bg-sky-500 disabled:bg-zinc-800 disabled:text-zinc-500 text-white font-bold rounded-xl transition-all active:scale-[0.98] shadow-lg shadow-sky-900/20 flex items-center justify-center gap-2 mt-4 cursor-pointer disabled:cursor-not-allowed"
           >
             {isLoading ? (
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -360,7 +376,7 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
                   setMode('signup');
                   setError('');
                 }}
-                className="text-emerald-500 font-bold hover:text-emerald-400 transition-colors cursor-pointer"
+                className="text-sky-500 font-bold hover:text-sky-400 transition-colors cursor-pointer"
               >
                 Cadastre-se
               </button>
@@ -374,7 +390,7 @@ const LoginScreen = ({ onLogin }: { onLogin: () => void }) => {
                   setMode('login');
                   setError('');
                 }}
-                className="text-emerald-500 font-bold hover:text-emerald-400 transition-colors cursor-pointer"
+                className="text-sky-500 font-bold hover:text-sky-400 transition-colors cursor-pointer"
               >
                 Faça Login
               </button>
@@ -432,7 +448,7 @@ const WorkshopCheck = ({ onVerified }: { onVerified: () => void }) => {
               className={cn(
                 "py-3 px-6 font-bold rounded-xl transition-all active:scale-95 cursor-pointer",
                 status === 'verified'
-                  ? "bg-emerald-600 text-white shadow-lg shadow-emerald-900/20"
+                  ? "bg-sky-600 text-white shadow-lg shadow-sky-900/20"
                   : "bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
               )}
             >
@@ -471,12 +487,11 @@ const WorkshopCheck = ({ onVerified }: { onVerified: () => void }) => {
 };
 
 const TestForm = ({ onClose, onSubmit }: { onClose: () => void, onSubmit: (data: Omit<TestRecord, 'id'>) => void }) => {
-  const [formData, setFormData] = useState<Partial<TestRecord>>({
+    const [formData, setFormData] = useState<Partial<TestRecord>>({
     solicitante: 'André',
     percurso: 1,
     dataSolicitacao: format(new Date(), 'yyyy-MM-dd'),
     horaSolicitacao: format(new Date(), 'HH:mm'),
-    dataInicio: format(new Date(), 'yyyy-MM-dd'),
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -505,7 +520,7 @@ const TestForm = ({ onClose, onSubmit }: { onClose: () => void, onSubmit: (data:
       >
         <div className="p-6 border-bottom border-zinc-800 flex items-center justify-between bg-zinc-900/50">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-emerald-500/10 text-emerald-500 rounded-lg">
+            <div className="p-2 bg-sky-500/10 text-sky-500 rounded-lg">
               <Plus size={20} />
             </div>
             <h2 className="text-xl font-bold text-white">Novo Agendamento de Teste</h2>
@@ -530,7 +545,7 @@ const TestForm = ({ onClose, onSubmit }: { onClose: () => void, onSubmit: (data:
                   required
                   value={formData.solicitante}
                   onChange={handleChange}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-sky-500 outline-none"
                 >
                   {SOLICITANTES.map(name => (
                     <option key={name} value={name}>{name}</option>
@@ -539,16 +554,18 @@ const TestForm = ({ onClose, onSubmit }: { onClose: () => void, onSubmit: (data:
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm text-zinc-400">Percurso (1-9)</label>
+                <label className="text-sm text-zinc-400">Percurso</label>
                 <select 
                   name="percurso"
                   required
                   value={formData.percurso}
                   onChange={handleChange}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-sky-500 outline-none"
                 >
-                  {[1,2,3,4,5,6,7,8,9].map(n => (
-                    <option key={n} value={n}>Percurso {n}</option>
+                  {PERCURSOS.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.id} - {p.name} {p.distance ? `(${p.distance})` : ''}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -591,7 +608,19 @@ const TestForm = ({ onClose, onSubmit }: { onClose: () => void, onSubmit: (data:
                   required
                   placeholder="Ex: ABC-1234"
                   onChange={handleChange}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-sky-500 outline-none"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm text-zinc-400">Ordem de Serviço (OS)</label>
+                <input 
+                  type="text" 
+                  name="os"
+                  required
+                  placeholder="Ex: 123456"
+                  onChange={handleChange}
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-sky-500 outline-none"
                 />
               </div>
 
@@ -601,9 +630,9 @@ const TestForm = ({ onClose, onSubmit }: { onClose: () => void, onSubmit: (data:
                   type="text" 
                   name="modelo"
                   required
-                  placeholder="Ex: Volvo FH 540"
+                  placeholder="Ex: Actros 2651"
                   onChange={handleChange}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-sky-500 outline-none"
                 />
               </div>
 
@@ -615,7 +644,7 @@ const TestForm = ({ onClose, onSubmit }: { onClose: () => void, onSubmit: (data:
                   required
                   placeholder="Nome da empresa ou cliente"
                   onChange={handleChange}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-sky-500 outline-none"
                 />
               </div>
 
@@ -627,7 +656,7 @@ const TestForm = ({ onClose, onSubmit }: { onClose: () => void, onSubmit: (data:
                   required
                   placeholder="Ex: Box 04, Pátio B"
                   onChange={handleChange}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-sky-500 outline-none"
                 />
               </div>
             </div>
@@ -638,53 +667,16 @@ const TestForm = ({ onClose, onSubmit }: { onClose: () => void, onSubmit: (data:
                 <Calendar size={14} /> Planejamento do Teste
               </h3>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm text-zinc-400">Data Início</label>
-                  <input 
-                    type="date" 
-                    name="dataInicio"
-                    required
-                    value={formData.dataInicio}
-                    onChange={handleChange}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-white text-sm"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm text-zinc-400">Hora Início</label>
-                  <input 
-                    type="time" 
-                    name="horaInicio"
-                    required
-                    onChange={handleChange}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-white text-sm"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm text-zinc-400">Km Início</label>
-                  <input 
-                    type="number" 
-                    name="kmInicio"
-                    required
-                    placeholder="0"
-                    onChange={handleChange}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-white text-sm"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm text-zinc-400">Motorista</label>
-                  <input 
-                    type="text" 
-                    name="motorista"
-                    required
-                    placeholder="Nome do motorista"
-                    onChange={handleChange}
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-white text-sm"
-                  />
-                </div>
+              <div className="space-y-2">
+                <label className="text-sm text-zinc-400">Motorista</label>
+                <input 
+                  type="text" 
+                  name="motorista"
+                  required
+                  placeholder="Nome do motorista"
+                  onChange={handleChange}
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-white text-sm"
+                />
               </div>
 
               <div className="space-y-2">
@@ -695,7 +687,7 @@ const TestForm = ({ onClose, onSubmit }: { onClose: () => void, onSubmit: (data:
                   rows={3}
                   placeholder="Descreva o problema relatado..."
                   onChange={handleChange}
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-white text-sm focus:ring-2 focus:ring-emerald-500 outline-none resize-none"
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-white text-sm focus:ring-2 focus:ring-sky-500 outline-none resize-none"
                 />
               </div>
             </div>
@@ -711,7 +703,7 @@ const TestForm = ({ onClose, onSubmit }: { onClose: () => void, onSubmit: (data:
             </button>
             <button 
               type="submit"
-              className="px-8 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition-all active:scale-95 shadow-lg shadow-emerald-900/20"
+              className="px-8 py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl transition-all active:scale-95 shadow-lg shadow-sky-900/20"
             >
               Agendar Teste
             </button>
@@ -722,11 +714,107 @@ const TestForm = ({ onClose, onSubmit }: { onClose: () => void, onSubmit: (data:
   );
 };
 
+const DriverStartForm = ({ test, onClose, onSubmit }: { test: TestRecord, onClose: () => void, onSubmit: (data: any) => void }) => {
+  const [formData, setFormData] = useState({
+    dataInicio: format(new Date(), 'yyyy-MM-dd'),
+    horaInicio: format(new Date(), 'HH:mm'),
+    kmInicio: '',
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(formData);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden"
+      >
+        <div className="p-6 border-b border-zinc-800 flex items-center justify-between bg-zinc-900/50">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-sky-500/10 text-sky-500 rounded-lg">
+              <Play size={20} fill="currentColor" />
+            </div>
+            <h2 className="text-xl font-bold text-white">Iniciar Execução do Teste</h2>
+          </div>
+          <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors">
+            <X size={24} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-8 space-y-6">
+          <div className="p-4 bg-zinc-800/50 rounded-xl border border-zinc-800 space-y-2">
+            <p className="text-xs text-zinc-500 uppercase font-bold tracking-wider">Veículo</p>
+            <p className="text-white font-bold">{test.placa} - {test.modelo}</p>
+            <p className="text-xs text-zinc-400">OS: {test.os}</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm text-zinc-400">Data de Início</label>
+              <input 
+                type="date" 
+                required
+                value={formData.dataInicio}
+                onChange={(e) => setFormData(prev => ({ ...prev, dataInicio: e.target.value }))}
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-white text-sm focus:ring-2 focus:ring-sky-500 outline-none"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm text-zinc-400">Hora de Início</label>
+              <input 
+                type="time" 
+                required
+                value={formData.horaInicio}
+                onChange={(e) => setFormData(prev => ({ ...prev, horaInicio: e.target.value }))}
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-white text-sm focus:ring-2 focus:ring-sky-500 outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm text-zinc-400">Km de Início</label>
+            <input 
+              type="number" 
+              required
+              placeholder="Digite a quilometragem atual"
+              value={formData.kmInicio}
+              onChange={(e) => setFormData(prev => ({ ...prev, kmInicio: e.target.value }))}
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-sky-500 outline-none"
+            />
+          </div>
+
+          <div className="pt-4 flex flex-col gap-3">
+            <button 
+              type="submit"
+              className="w-full py-3 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl transition-all active:scale-95 shadow-lg shadow-sky-900/20"
+            >
+              CONFIRMAR INÍCIO DO TESTE
+            </button>
+            <button 
+              type="button"
+              onClick={onClose}
+              className="w-full py-3 text-zinc-500 hover:text-white font-medium transition-colors"
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </motion.div>
+    </div>
+  );
+};
+
 export default function FieldTestDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [isVerified, setIsVerified] = useState(false);
   const [records, setRecords] = useState<TestRecord[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [executingTest, setExecutingTest] = useState<TestRecord | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isMounted, setIsMounted] = useState(false);
 
@@ -758,25 +846,62 @@ export default function FieldTestDashboard() {
     const recordWithId = {
       ...newRecord,
       id: Math.random().toString(36).substr(2, 9),
+      // Campos que serão preenchidos pelo motorista
+      dataInicio: '-',
+      horaInicio: '-',
+      kmInicio: 0,
       // Campos que podem ser preenchidos depois
       dataFim: newRecord.dataFim || '-',
       horaFim: newRecord.horaFim || '-',
       kmFim: newRecord.kmFim || 0,
-      feedback: newRecord.feedback || 'Aguardando teste...',
+      feedback: newRecord.feedback || 'Aguardando início do teste...',
     };
     setRecords(prev => [recordWithId, ...prev]);
     setIsFormOpen(false);
   };
 
-  const filteredRecords = records.filter(r => 
-    r.placa.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.modelo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.cliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.motorista.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const isDriver = currentUser?.role?.toLowerCase().trim() === 'motorista de teste';
+  const driverName = currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : '';
+
+  const filteredRecords = records.filter(r => {
+    const matchesSearch = 
+      r.placa.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      r.modelo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      r.cliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      r.motorista.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      r.os.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      PERCURSOS.find(p => p.id === Number(r.percurso))?.name.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (isDriver) {
+      const driverFirstName = currentUser.firstName.toLowerCase();
+      const driverLastName = currentUser.lastName.toLowerCase();
+      const recordMotorista = r.motorista.toLowerCase();
+      
+      const isAssigned = recordMotorista.includes(driverFirstName) || 
+                         recordMotorista.includes(driverLastName) ||
+                         driverName.toLowerCase().includes(recordMotorista);
+
+      return matchesSearch && isAssigned;
+    }
+    return matchesSearch;
+  });
 
   if (!isAuthenticated) {
-    return <LoginScreen onLogin={() => setIsAuthenticated(true)} />;
+    return (
+      <LoginScreen 
+        onLogin={(user) => {
+          setCurrentUser(user);
+          setIsAuthenticated(true);
+          // Only "motorista de teste" needs to verify workshop organization
+          const userRole = user.role?.toLowerCase().trim();
+          if (userRole !== 'motorista de teste') {
+            setIsVerified(true);
+          } else {
+            setIsVerified(false);
+          }
+        }} 
+      />
+    );
   }
 
   if (!isVerified) {
@@ -784,7 +909,7 @@ export default function FieldTestDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-300 font-sans selection:bg-emerald-500/30">
+    <div className="min-h-screen bg-zinc-950 text-zinc-300 font-sans selection:bg-sky-500/30">
       {/* Header */}
       <header className="sticky top-0 z-30 bg-zinc-950/80 backdrop-blur-md border-b border-zinc-800 px-6 py-4">
         <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -803,30 +928,52 @@ export default function FieldTestDashboard() {
             </div>
             <div className="flex flex-col">
               <h1 className="text-2xl font-bold text-white tracking-tight leading-none mb-1">Controle de Testes de Percurso</h1>
-              <p className="text-xs text-zinc-500 font-semibold uppercase tracking-[0.2em]">MinasMáquinas S/A</p>
+              <div className="flex items-center gap-2">
+                <p className="text-xs text-zinc-500 font-semibold uppercase tracking-[0.2em]">MinasMáquinas S/A</p>
+                {currentUser && (
+                  <>
+                    <span className="text-zinc-700">•</span>
+                    <p className="text-xs text-sky-500 font-medium">Olá, {currentUser.firstName} ({currentUser.role})</p>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <button 
-              onClick={() => {
-                setIsVerified(false);
-                setIsAuthenticated(false);
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800 rounded-xl transition-all text-sm font-medium"
-              title="Voltar para Organização da Oficina"
-            >
-              <LogOut size={18} />
-              <span className="hidden sm:inline">Sair/ Organizar oficina</span>
-            </button>
+            {currentUser?.role?.toLowerCase().trim() === 'motorista de teste' ? (
+              <button 
+                onClick={() => {
+                  setIsVerified(false);
+                  setIsAuthenticated(false);
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800 rounded-xl transition-all text-sm font-medium"
+                title="Voltar para Organização da Oficina"
+              >
+                <LogOut size={18} />
+                <span className="hidden sm:inline">Sair/ Organizar oficina</span>
+              </button>
+            ) : (
+              <button 
+                onClick={() => {
+                  setIsAuthenticated(false);
+                  setCurrentUser(null);
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800 rounded-xl transition-all text-sm font-medium"
+                title="Sair do Sistema"
+              >
+                <LogOut size={18} />
+                <span className="hidden sm:inline">Sair</span>
+              </button>
+            )}
             <div className="relative group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-emerald-500 transition-colors" size={18} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-sky-500 transition-colors" size={18} />
               <input 
                 type="text" 
-                placeholder="Buscar por placa, modelo, cliente..." 
+                placeholder="Buscar por placa, OS, motorista, percurso..." 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="bg-zinc-900 border border-zinc-800 rounded-xl pl-10 pr-4 py-2 text-sm w-full md:w-64 focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+                className="bg-zinc-900 border border-zinc-800 rounded-xl pl-10 pr-4 py-2 text-sm w-full md:w-64 focus:ring-2 focus:ring-sky-500 outline-none transition-all"
               />
             </div>
             <button className="p-2 bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-400 hover:text-white transition-colors">
@@ -838,24 +985,26 @@ export default function FieldTestDashboard() {
 
       <main className="max-w-[1600px] mx-auto p-6 space-y-6">
         {/* Stats Summary */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[
-            { label: 'Total de Testes', value: records.length, icon: ClipboardCheck, color: 'text-blue-400' },
-            { label: 'Hoje', value: records.filter(r => r.dataInicio === format(new Date(), 'yyyy-MM-dd')).length, icon: Calendar, color: 'text-emerald-400' },
-            { label: 'Pendentes', value: records.filter(r => r.feedback.includes('Aguardando')).length, icon: Clock, color: 'text-amber-400' },
-            { label: 'Concluídos', value: records.filter(r => !r.feedback.includes('Aguardando')).length, icon: CheckCircle2, color: 'text-purple-400' },
-          ].map((stat, i) => (
-            <div key={i} className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl flex items-center gap-4">
-              <div className={cn("p-3 rounded-xl bg-zinc-800", stat.color)}>
-                <stat.icon size={20} />
+        {currentUser?.role?.toLowerCase().trim() !== 'motorista de teste' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { label: 'Total de Testes', value: records.length, icon: ClipboardCheck, color: 'text-blue-400' },
+              { label: 'Hoje', value: records.filter(r => r.dataInicio === format(new Date(), 'yyyy-MM-dd')).length, icon: Calendar, color: 'text-sky-400' },
+              { label: 'Pendentes', value: records.filter(r => r.feedback.includes('Aguardando')).length, icon: Clock, color: 'text-amber-400' },
+              { label: 'Concluídos', value: records.filter(r => !r.feedback.includes('Aguardando')).length, icon: CheckCircle2, color: 'text-purple-400' },
+            ].map((stat, i) => (
+              <div key={i} className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl flex items-center gap-4">
+                <div className={cn("p-3 rounded-xl bg-zinc-800", stat.color)}>
+                  <stat.icon size={20} />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider">{stat.label}</p>
+                  <p className="text-2xl font-bold text-white">{stat.value}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider">{stat.label}</p>
-                <p className="text-2xl font-bold text-white">{stat.value}</p>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         {/* Spreadsheet Table */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-xl">
@@ -865,6 +1014,7 @@ export default function FieldTestDashboard() {
                 <tr className="bg-zinc-800/50 text-[10px] font-bold text-zinc-500 uppercase tracking-widest border-b border-zinc-800">
                   <th className="px-4 py-4 whitespace-nowrap min-w-[120px]">Solicitante</th>
                   <th className="px-4 py-4 whitespace-nowrap min-w-[100px]">Percurso</th>
+                  <th className="px-4 py-4 whitespace-nowrap min-w-[100px]">OS</th>
                   <th className="px-4 py-4 whitespace-nowrap min-w-[160px]">Veículo</th>
                   <th className="px-4 py-4 whitespace-nowrap min-w-[180px]">Cliente</th>
                   <th className="px-4 py-4 whitespace-nowrap min-w-[280px]">Falha</th>
@@ -875,6 +1025,7 @@ export default function FieldTestDashboard() {
                   <th className="px-4 py-4 whitespace-nowrap min-w-[160px]">Motorista</th>
                   <th className="px-4 py-4 whitespace-nowrap min-w-[120px]">Solicitação</th>
                   <th className="px-4 py-4 whitespace-nowrap min-w-[280px]">Feedback</th>
+                  <th className="px-4 py-4 whitespace-nowrap min-w-[120px]">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-800">
@@ -889,11 +1040,17 @@ export default function FieldTestDashboard() {
                       </span>
                     </td>
                     <td className="px-4 py-4">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 group/percurso relative">
                         <div className="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-white border border-zinc-700">
                           {record.percurso}
                         </div>
+                        <span className="text-[10px] text-zinc-500 truncate max-w-[100px]">
+                          {PERCURSOS.find(p => p.id === Number(record.percurso))?.name}
+                        </span>
                       </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className="text-xs font-mono text-sky-500 font-bold">{record.os}</span>
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex flex-col">
@@ -949,10 +1106,24 @@ export default function FieldTestDashboard() {
                       <div className="flex items-center gap-2">
                         <div className={cn(
                           "w-2 h-2 rounded-full shrink-0",
-                          record.feedback.includes('Aguardando') ? "bg-amber-500 animate-pulse" : "bg-emerald-500"
+                          record.feedback.includes('Aguardando') ? "bg-amber-500 animate-pulse" : "bg-sky-500"
                         )} />
                         <span className="text-xs text-zinc-400 italic leading-relaxed">{record.feedback}</span>
                       </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      {isDriver && record.dataInicio === '-' && (
+                        <button 
+                          onClick={() => setExecutingTest(record)}
+                          className="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center gap-2"
+                        >
+                          <Play size={12} fill="currentColor" />
+                          INICIAR
+                        </button>
+                      )}
+                      {!isDriver && (
+                        <span className="text-[10px] text-zinc-600 italic">Sem ações</span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -961,15 +1132,17 @@ export default function FieldTestDashboard() {
           </div>
           
           {/* Footer of the spreadsheet with the button */}
-          <div className="p-6 bg-zinc-900/50 border-t border-zinc-800 flex justify-center">
-            <button 
-              onClick={() => setIsFormOpen(true)}
-              className="flex items-center gap-3 px-10 py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-2xl transition-all active:scale-95 shadow-xl shadow-emerald-900/20 group"
-            >
-              <Plus size={24} className="group-hover:rotate-90 transition-transform" />
-              <span>CADASTRAR NOVO TESTE</span>
-            </button>
-          </div>
+          {!isDriver && (
+            <div className="p-6 bg-zinc-900/50 border-t border-zinc-800 flex justify-center">
+              <button 
+                onClick={() => setIsFormOpen(true)}
+                className="flex items-center gap-3 px-10 py-4 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-2xl transition-all active:scale-95 shadow-xl shadow-sky-900/20 group"
+              >
+                <Plus size={24} className="group-hover:rotate-90 transition-transform" />
+                <span>CADASTRAR NOVO TESTE</span>
+              </button>
+            </div>
+          )}
         </div>
       </main>
 
@@ -981,15 +1154,31 @@ export default function FieldTestDashboard() {
             onSubmit={handleAddRecord}
           />
         )}
+        {executingTest && (
+          <DriverStartForm 
+            test={executingTest}
+            onClose={() => setExecutingTest(null)}
+            onSubmit={(data) => {
+              setRecords(prev => prev.map(r => 
+                r.id === executingTest.id 
+                  ? { ...r, ...data, feedback: 'Teste em andamento...' } 
+                  : r
+              ));
+              setExecutingTest(null);
+            }}
+          />
+        )}
       </AnimatePresence>
 
       {/* Floating Action for Mobile (Optional) */}
-      <button 
-        onClick={() => setIsFormOpen(true)}
-        className="md:hidden fixed bottom-6 right-6 w-14 h-14 bg-emerald-600 text-white rounded-full flex items-center justify-center shadow-2xl z-40"
-      >
-        <Plus size={28} />
-      </button>
+      {!isDriver && (
+        <button 
+          onClick={() => setIsFormOpen(true)}
+          className="md:hidden fixed bottom-6 right-6 w-14 h-14 bg-sky-600 text-white rounded-full flex items-center justify-center shadow-2xl z-40"
+        >
+          <Plus size={28} />
+        </button>
+      )}
     </div>
   );
 }
