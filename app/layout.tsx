@@ -5,8 +5,8 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Controle de Testes em Campo',
-  description: 'Sistema de agendamento e controle de testes de veículos em campo.',
+  title: 'Controle de Testes de Percurso',
+  description: 'Sistema de agendamento e controle de testes de percurso.',
 };
 
 export default function RootLayout({

@@ -21,6 +21,7 @@ import {
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import Image from 'next/image';
 
 // --- Types ---
 
@@ -106,12 +107,19 @@ const WorkshopCheck = ({ onVerified }: { onVerified: () => void }) => {
         animate={{ opacity: 1, y: 0 }}
         className="max-w-md w-full bg-zinc-900 border border-zinc-800 p-8 rounded-2xl shadow-2xl text-center"
       >
-        <div className="w-16 h-16 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6">
-          <ClipboardCheck size={32} />
+        <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl border border-zinc-800">
+          <Image 
+            src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Mercedes-Benz_Logo_2010.svg/256px-Mercedes-Benz_Logo_2010.svg.png"
+            alt="Mercedes-Benz Logo"
+            width={60}
+            height={60}
+            className="object-contain"
+            referrerPolicy="no-referrer"
+          />
         </div>
         
-        <h2 className="text-2xl font-bold text-white mb-2">Verificação de Segurança</h2>
-        <p className="text-zinc-400 mb-8">Antes de acessar o painel de controle, confirme o estado da oficina.</p>
+        <h2 className="text-2xl font-bold text-white mb-2">Organização da oficina</h2>
+        <p className="text-zinc-400 mb-8">Antes de iniciar os testes de percurso, realize a organização da oficina e confirme.</p>
         
         <div className="space-y-4">
           <p className="text-lg font-medium text-zinc-200">A oficina foi organizada?</p>
@@ -138,10 +146,10 @@ const WorkshopCheck = ({ onVerified }: { onVerified: () => void }) => {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="mt-8 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-200 text-sm flex items-start gap-3 text-left"
+              className="mt-8 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-200 text-sm flex items-start gap-3 text-left"
             >
-              <AlertCircle className="shrink-0 mt-0.5" size={18} />
-              <p>Por favor, realize a organização da oficina antes de prosseguir com o agendamento de testes. A segurança e ordem são fundamentais.</p>
+              <AlertCircle className="shrink-0 mt-0.5 text-red-500" size={18} />
+              <p>Por favor realize a organização da oficina antes de prosseguir com os testes de percurso agendados. A organização é fundamental.</p>
             </motion.div>
           )}
         </AnimatePresence>
@@ -464,12 +472,19 @@ export default function FieldTestDashboard() {
       <header className="sticky top-0 z-30 bg-zinc-950/80 backdrop-blur-md border-b border-zinc-800 px-6 py-4">
         <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-900/20">
-              <LayoutDashboard size={24} />
+            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-lg border border-zinc-800 overflow-hidden">
+              <Image 
+                src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Mercedes-Benz_Logo_2010.svg/256px-Mercedes-Benz_Logo_2010.svg.png"
+                alt="Mercedes-Benz Logo"
+                width={40}
+                height={40}
+                className="object-contain"
+                referrerPolicy="no-referrer"
+              />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-white tracking-tight">Controle de Testes em Campo</h1>
-              <p className="text-xs text-zinc-500 font-medium uppercase tracking-wider">Gestão de Frotas & Oficina</p>
+              <h1 className="text-xl font-bold text-white tracking-tight">Controle de Testes de Percurso</h1>
+              <p className="text-xs text-zinc-500 font-medium uppercase tracking-wider">Oficina</p>
             </div>
           </div>
 

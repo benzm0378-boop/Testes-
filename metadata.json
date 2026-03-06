@@ -1,5 +1,5 @@
 {
-  "name": "Controle de Testes em Campo",
-  "description": "Sistema de agendamento e controle de testes de veículos em campo com verificação de organização de oficina.",
+  "name": "Controle de Testes de Percurso",
+  "description": "Sistema de agendamento e controle de testes de percurso.",
   "requestFramePermissions": []
 }
