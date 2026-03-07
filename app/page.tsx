@@ -72,50 +72,7 @@ interface TestRecord {
 
 // --- Mock Data ---
 
-const INITIAL_DATA: TestRecord[] = [
-  {
-    id: '1',
-    solicitante: 'André',
-    percurso: 3,
-    placa: 'ABC-1234',
-    modelo: 'Mercedes-Benz Actros',
-    cliente: 'Transportadora Silva',
-    falha: 'Ruído na suspensão dianteira',
-    localizacao: 'Pátio Principal',
-    dataInicio: '2024-03-10',
-    dataFim: '2024-03-10',
-    horaInicio: '08:00',
-    horaFim: '12:00',
-    kmInicio: 150200,
-    kmFim: 150350,
-    feedback: 'Teste concluído, ruído identificado no batente.',
-    motorista: 'João Santos',
-    os: '12345',
-    dataSolicitacao: '2024-03-09',
-    horaSolicitacao: '15:30',
-  },
-  {
-    id: '2',
-    solicitante: 'Andreza',
-    percurso: 1,
-    placa: 'XYZ-9876',
-    modelo: 'Volvo FH 540',
-    cliente: 'Logística Express',
-    falha: 'Perda de potência em subida',
-    localizacao: 'Oficina Sul',
-    dataInicio: '2024-03-11',
-    dataFim: '2024-03-11',
-    horaInicio: '14:00',
-    horaFim: '17:00',
-    kmInicio: 85400,
-    kmFim: 85480,
-    feedback: 'Aguardando análise de dados do scanner.',
-    motorista: 'Ricardo Lima',
-    os: '12346',
-    dataSolicitacao: '2024-03-10',
-    horaSolicitacao: '09:15',
-  }
-];
+const INITIAL_DATA: TestRecord[] = [];
 
 // --- Components ---
 
@@ -847,7 +804,7 @@ const DriverStartForm = ({ test, onClose, onSubmit }: { test: TestRecord, onClos
               placeholder="Digite a quilometragem atual"
               value={formData.kmInicio}
               onChange={(e) => setFormData(prev => ({ ...prev, kmInicio: e.target.value }))}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-sky-500 outline-none [&:-webkit-autofill]:shadow-[0_0_0_1000px_#27272a_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-sky-500 outline-none [&:-webkit-autofill]:shadow-[0_0_0_1000px_#27272a_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
           </div>
 
@@ -872,6 +829,187 @@ const DriverStartForm = ({ test, onClose, onSubmit }: { test: TestRecord, onClos
   );
 };
 
+const DriverFinishForm = ({ test, onClose, onSubmit }: { test: TestRecord, onClose: () => void, onSubmit: (data: any) => void }) => {
+  const [formData, setFormData] = useState({
+    dataFim: format(new Date(), 'yyyy-MM-dd'),
+    horaFim: format(new Date(), 'HH:mm'),
+    kmFim: '',
+    feedback: '',
+    retornarOficina: '',
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validação extra para garantir que todos os campos estão preenchidos
+    if (!formData.dataFim || !formData.horaFim || !formData.kmFim || !formData.feedback || !formData.retornarOficina) {
+      alert("Por favor, preencha todos os campos obrigatórios.");
+      return;
+    }
+
+    // Adiciona a resposta da pergunta ao feedback para registro
+    const finalFeedback = `${formData.feedback}\n\n[Retorno à oficina: ${formData.retornarOficina.toUpperCase()}]`;
+    
+    onSubmit({
+      ...formData,
+      feedback: finalFeedback
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden"
+      >
+        <div className="p-6 border-b border-zinc-800 flex items-center justify-between bg-zinc-900/50">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-emerald-500/10 text-emerald-500 rounded-lg">
+              <CheckCircle2 size={20} />
+            </div>
+            <h2 className="text-xl font-bold text-white">Finalizar Execução do Teste</h2>
+          </div>
+          <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors">
+            <X size={24} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-8 space-y-6">
+          <div className="p-4 bg-zinc-800/50 rounded-xl border border-zinc-800 space-y-2">
+            <p className="text-xs text-zinc-500 uppercase font-bold tracking-wider">Veículo</p>
+            <p className="text-white font-bold">{test.placa} - {test.modelo}</p>
+            <p className="text-xs text-zinc-400">OS: {test.os}</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm text-zinc-400">Data de Fim</label>
+              <input 
+                type="date" 
+                required
+                value={formData.dataFim}
+                onChange={(e) => setFormData(prev => ({ ...prev, dataFim: e.target.value }))}
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-white text-sm focus:ring-2 focus:ring-sky-500 outline-none"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm text-zinc-400">Hora de Fim</label>
+              <input 
+                type="time" 
+                required
+                value={formData.horaFim}
+                onChange={(e) => setFormData(prev => ({ ...prev, horaFim: e.target.value }))}
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2 text-white text-sm focus:ring-2 focus:ring-sky-500 outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm text-zinc-400">Km de Fim</label>
+            <input 
+              type="number" 
+              required
+              placeholder="Digite a quilometragem final"
+              value={formData.kmFim}
+              onChange={(e) => setFormData(prev => ({ ...prev, kmFim: e.target.value }))}
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-sky-500 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm text-zinc-400">Feedback / Resultado Final</label>
+            <textarea 
+              required
+              rows={3}
+              placeholder="Descreva o resultado do teste. Use a palavra 'falha' se o veículo apresentar problemas."
+              value={formData.feedback}
+              onChange={(e) => setFormData(prev => ({ ...prev, feedback: e.target.value }))}
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 text-white text-sm focus:ring-2 focus:ring-sky-500 outline-none resize-none"
+            />
+          </div>
+
+          <div className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-xl space-y-4">
+            <div className="space-y-3">
+              <label className="text-sm text-zinc-400 block leading-tight">
+                (Consultar o solicitante do teste) <br />
+                <span className="text-white font-bold">Será necessário retornar com o veículo para dentro da oficina?</span>
+              </label>
+              <div className="flex gap-6">
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <input 
+                    type="radio" 
+                    name="retornarOficina" 
+                    value="sim"
+                    required
+                    checked={formData.retornarOficina === 'sim'}
+                    onChange={(e) => setFormData(prev => ({ ...prev, retornarOficina: e.target.value }))}
+                    className="w-4 h-4 text-emerald-500 bg-zinc-800 border-zinc-700 focus:ring-emerald-500 focus:ring-offset-zinc-900"
+                  />
+                  <span className="text-sm font-bold text-zinc-300 group-hover:text-white transition-colors">SIM</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <input 
+                    type="radio" 
+                    name="retornarOficina" 
+                    value="não"
+                    required
+                    checked={formData.retornarOficina === 'não'}
+                    onChange={(e) => setFormData(prev => ({ ...prev, retornarOficina: e.target.value }))}
+                    className="w-4 h-4 text-emerald-500 bg-zinc-800 border-zinc-700 focus:ring-emerald-500 focus:ring-offset-zinc-900"
+                  />
+                  <span className="text-sm font-bold text-zinc-300 group-hover:text-white transition-colors">NÃO</span>
+                </label>
+              </div>
+              
+              <AnimatePresence mode="wait">
+                {formData.retornarOficina === 'sim' && (
+                  <motion.p 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="text-[11px] font-black text-emerald-500 flex items-center gap-2 bg-emerald-500/10 p-2 rounded-lg border border-emerald-500/20"
+                  >
+                    <CheckCircle2 size={14} />
+                    ESTACIONAR O VEÍCULO NA OFICINA
+                  </motion.p>
+                )}
+                {formData.retornarOficina === 'não' && (
+                  <motion.p 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="text-[11px] font-black text-emerald-500 flex items-center gap-2 bg-emerald-500/10 p-2 rounded-lg border border-emerald-500/20"
+                  >
+                    <CheckCircle2 size={14} />
+                    ESTACIONAR O VEÍCULO NO PÁTIO EXTERNO
+                  </motion.p>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+
+          <div className="pt-4 flex flex-col gap-3">
+            <button 
+              type="submit"
+              className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl transition-all active:scale-95 shadow-lg shadow-emerald-900/20"
+            >
+              FINALIZAR TESTE
+            </button>
+            <button 
+              type="button"
+              onClick={onClose}
+              className="w-full py-3 text-zinc-500 hover:text-white font-medium transition-colors"
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </motion.div>
+    </div>
+  );
+};
+
 export default function FieldTestDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -880,6 +1018,7 @@ export default function FieldTestDashboard() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTest, setEditingTest] = useState<TestRecord | null>(null);
   const [executingTest, setExecutingTest] = useState<TestRecord | null>(null);
+  const [finishingTest, setFinishingTest] = useState<TestRecord | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isMounted, setIsMounted] = useState(false);
 
@@ -921,7 +1060,7 @@ export default function FieldTestDashboard() {
       kmFim: newRecord.kmFim || 0,
       feedback: newRecord.feedback || 'Aguardando início do teste...',
     };
-    setRecords(prev => [recordWithId, ...prev]);
+    setRecords(prev => [...prev, recordWithId]);
     setIsFormOpen(false);
   };
 
@@ -964,6 +1103,20 @@ export default function FieldTestDashboard() {
     }
     return matchesSearch;
   });
+
+  // Logic for "motorista de teste": only show the next test in the queue (FIFO)
+  const displayRecords = (() => {
+    if (isDriver) {
+      // Prioritize tests that are already in progress (started but not finished)
+      const inProgressTest = filteredRecords.find(r => r.dataInicio !== '-' && r.dataFim === '-');
+      if (inProgressTest) return [inProgressTest];
+
+      // If no test is in progress, show the oldest unfinished test
+      const nextTest = filteredRecords.find(r => r.dataFim === '-');
+      return nextTest ? [nextTest] : [];
+    }
+    return filteredRecords;
+  })();
 
   if (!isAuthenticated) {
     return (
@@ -1045,6 +1198,7 @@ export default function FieldTestDashboard() {
                 <span className="hidden sm:inline">Sair</span>
               </button>
             )}
+
             <div className="relative group">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-sky-500 transition-colors" size={18} />
               <input 
@@ -1091,13 +1245,13 @@ export default function FieldTestDashboard() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-zinc-800/50 text-[10px] font-bold text-zinc-500 uppercase tracking-widest border-b border-zinc-800">
-                  <th className="px-4 py-4 whitespace-nowrap min-w-[120px]">Solicitante</th>
+                  <th className="px-4 py-4 whitespace-nowrap min-w-[200px]">Solicitante</th>
                   <th className="px-4 py-4 whitespace-nowrap min-w-[100px]">Percurso</th>
                   <th className="px-4 py-4 whitespace-nowrap min-w-[100px]">OS</th>
                   <th className="px-4 py-4 whitespace-nowrap min-w-[160px]">Veículo</th>
                   <th className="px-4 py-4 whitespace-nowrap min-w-[180px]">Cliente</th>
-                  <th className="px-4 py-4 whitespace-nowrap min-w-[280px]">Falha</th>
-                  <th className="px-4 py-4 whitespace-nowrap min-w-[180px]">Localização</th>
+                  <th className="px-2 py-4 whitespace-nowrap min-w-[200px]">Falha</th>
+                  <th className="px-2 py-4 whitespace-nowrap min-w-[140px]">Localização</th>
                   <th className="px-4 py-4 whitespace-nowrap min-w-[120px]">Início</th>
                   <th className="px-4 py-4 whitespace-nowrap min-w-[120px]">Fim</th>
                   <th className="px-4 py-4 whitespace-nowrap min-w-[120px]">KM</th>
@@ -1108,11 +1262,11 @@ export default function FieldTestDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-800">
-                {filteredRecords.map((record) => (
+                {displayRecords.map((record) => (
                   <tr key={record.id} className="hover:bg-zinc-800/30 transition-colors group">
                     <td className="px-4 py-4">
                       <span className={cn(
-                        "px-2 py-1 rounded text-xs font-bold uppercase",
+                        "px-2 py-1 rounded text-xs font-bold uppercase whitespace-nowrap",
                         "bg-zinc-800 text-white border border-zinc-700"
                       )}>
                         {record.solicitante}
@@ -1140,10 +1294,10 @@ export default function FieldTestDashboard() {
                     <td className="px-4 py-4">
                       <span className="text-xs font-bold text-white">{record.cliente}</span>
                     </td>
-                    <td className="px-4 py-4">
+                    <td className="px-2 py-4">
                       <p className="text-xs font-bold text-white leading-relaxed">{record.falha}</p>
                     </td>
-                    <td className="px-4 py-4">
+                    <td className="px-2 py-4">
                       <div className="flex items-center gap-1.5 text-xs font-bold text-white">
                         <MapPin size={12} className="text-zinc-500" />
                         {record.localizacao}
@@ -1182,13 +1336,43 @@ export default function FieldTestDashboard() {
                       </div>
                     </td>
                     <td className="px-4 py-4">
-                      <div className="flex items-center gap-2">
-                        <div className={cn(
-                          "w-2 h-2 rounded-full shrink-0",
-                          record.feedback.includes('Aguardando') ? "bg-amber-500 animate-pulse" : "bg-sky-500"
-                        )} />
-                        <span className="text-xs font-bold text-white italic leading-relaxed">{record.feedback}</span>
-                      </div>
+                      {(() => {
+                        const isAguardando = record.dataInicio === '-';
+                        const isEmExecucao = record.dataInicio !== '-' && record.dataFim === '-';
+                        const isConcluido = record.dataFim !== '-';
+                        
+                        // Check for failure keywords in feedback to distinguish between green and red
+                        const feedbackLower = record.feedback.toLowerCase();
+                        const temFalha = feedbackLower.includes('falha') || 
+                                        feedbackLower.includes('problema') || 
+                                        feedbackLower.includes('defeito') || 
+                                        feedbackLower.includes('erro') ||
+                                        feedbackLower.includes('apresentou');
+                        
+                        const isConcluidoComFalha = isConcluido && temFalha;
+                        const isConcluidoSemFalha = isConcluido && !temFalha;
+
+                        return (
+                          <div className={cn(
+                            "px-3 py-2 rounded-lg border flex items-center gap-2 min-w-[200px]",
+                            isAguardando && "bg-zinc-500/10 border-zinc-500/20 text-zinc-500",
+                            isEmExecucao && "bg-amber-500/10 border-amber-500/20 text-amber-500",
+                            isConcluidoSemFalha && "bg-emerald-500/10 border-emerald-500/20 text-emerald-500",
+                            isConcluidoComFalha && "bg-red-500/10 border-red-500/20 text-red-500"
+                          )}>
+                            <div className={cn(
+                              "w-2 h-2 rounded-full shrink-0",
+                              isAguardando && "bg-zinc-500",
+                              isEmExecucao && "bg-amber-500 animate-pulse",
+                              isConcluidoSemFalha && "bg-emerald-500",
+                              isConcluidoComFalha && "bg-red-500"
+                            )} />
+                            <span className="text-xs font-bold italic leading-relaxed line-clamp-2">
+                              {record.feedback}
+                            </span>
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-2">
@@ -1201,7 +1385,16 @@ export default function FieldTestDashboard() {
                             INICIAR
                           </button>
                         )}
-                        {currentUser && record.solicitante && (currentUser.firstName + " " + currentUser.lastName).localeCompare(record.solicitante, undefined, { sensitivity: 'base' }) === 0 && (
+                        {isDriver && record.dataInicio !== '-' && record.dataFim === '-' && (
+                          <button 
+                            onClick={() => setFinishingTest(record)}
+                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center gap-2"
+                          >
+                            <CheckCircle2 size={12} />
+                            FINALIZAR
+                          </button>
+                        )}
+                        {currentUser && record.solicitante && (currentUser.firstName + " " + currentUser.lastName).localeCompare(record.solicitante, undefined, { sensitivity: 'base' }) === 0 ? (
                           <div className="flex items-center gap-2">
                             <button 
                               onClick={() => setEditingTest(record)}
@@ -1219,9 +1412,17 @@ export default function FieldTestDashboard() {
                               APAGAR
                             </button>
                           </div>
-                        )}
-                        {!isDriver && currentUser && record.solicitante && (currentUser.firstName + " " + currentUser.lastName).localeCompare(record.solicitante, undefined, { sensitivity: 'base' }) !== 0 && (
-                          <span className="text-[10px] text-zinc-600 italic">Sem ações</span>
+                        ) : !isDriver && currentUser && record.solicitante && (currentUser.firstName + " " + currentUser.lastName).localeCompare(record.solicitante, undefined, { sensitivity: 'base' }) !== 0 ? (
+                          <button 
+                            onClick={() => handleDeleteRecord(record.id)}
+                            className="px-3 py-1.5 bg-zinc-800 hover:bg-red-600 text-zinc-500 hover:text-white text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center gap-2 border border-zinc-700 hover:border-red-600"
+                            title="Apagar este teste (mesmo não sendo seu)"
+                          >
+                            <Trash2 size={12} />
+                            APAGAR
+                          </button>
+                        ) : (
+                          null
                         )}
                       </div>
                     </td>
@@ -1271,6 +1472,20 @@ export default function FieldTestDashboard() {
                   : r
               ));
               setExecutingTest(null);
+            }}
+          />
+        )}
+        {finishingTest && (
+          <DriverFinishForm 
+            test={finishingTest}
+            onClose={() => setFinishingTest(null)}
+            onSubmit={(data) => {
+              setRecords(prev => prev.map(r => 
+                r.id === finishingTest.id 
+                  ? { ...r, ...data } 
+                  : r
+              ));
+              setFinishingTest(null);
             }}
           />
         )}
