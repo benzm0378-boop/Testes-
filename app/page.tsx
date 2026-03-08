@@ -669,48 +669,6 @@ const TestForm = ({ onClose, onSubmit, initialData, currentUser }: {
                 />
               </div>
 
-              {initialData && (
-                <div className="pt-4 space-y-4 border-t border-zinc-800">
-                  <h3 className="text-xs font-bold text-sky-500 uppercase tracking-widest flex items-center gap-2">
-                    <CheckCircle2 size={14} /> Informações de Execução
-                  </h3>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-sm text-zinc-400">KM Inicial</label>
-                      <input 
-                        type="number" 
-                        name="kmInicio"
-                        value={formData.kmInicio}
-                        onChange={handleChange}
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-white text-sm focus:ring-2 focus:ring-sky-500 outline-none transition-all"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm text-zinc-400">KM Final</label>
-                      <input 
-                        type="number" 
-                        name="kmFim"
-                        value={formData.kmFim}
-                        onChange={handleChange}
-                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-white text-sm focus:ring-2 focus:ring-sky-500 outline-none transition-all"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm text-zinc-400">Feedback / Resultado</label>
-                    <textarea 
-                      name="feedback"
-                      value={formData.feedback || ''}
-                      rows={2}
-                      placeholder="Resultado do teste..."
-                      onChange={handleChange}
-                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-white text-sm focus:ring-2 focus:ring-sky-500 outline-none resize-none transition-all"
-                    />
-                  </div>
-                </div>
-              )}
             </div>
           </div>
 
@@ -861,9 +819,9 @@ const DriverFinishForm = ({ test, onClose, onSubmit }: { test: TestRecord, onClo
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden"
+        className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
       >
-        <div className="p-6 border-b border-zinc-800 flex items-center justify-between bg-zinc-900/50">
+        <div className="p-6 border-b border-zinc-800 flex items-center justify-between bg-zinc-900/50 shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-emerald-500/10 text-emerald-500 rounded-lg">
               <CheckCircle2 size={20} />
@@ -875,7 +833,7 @@ const DriverFinishForm = ({ test, onClose, onSubmit }: { test: TestRecord, onClo
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-8 space-y-6">
+        <form onSubmit={handleSubmit} className="p-8 space-y-6 overflow-y-auto flex-1 custom-scrollbar">
           <div className="p-4 bg-zinc-800/50 rounded-xl border border-zinc-800 space-y-2">
             <p className="text-xs text-zinc-500 uppercase font-bold tracking-wider">Veículo</p>
             <p className="text-white font-bold">{test.placa} - {test.modelo}</p>
@@ -933,7 +891,7 @@ const DriverFinishForm = ({ test, onClose, onSubmit }: { test: TestRecord, onClo
             <div className="space-y-3">
               <label className="text-sm text-zinc-400 block leading-tight">
                 (Consultar o solicitante do teste) <br />
-                <span className="text-white font-bold">Será necessário retornar com o veículo para dentro da oficina?</span>
+                Será necessário retornar com o veículo para dentro da oficina?
               </label>
               <div className="flex gap-6">
                 <label className="flex items-center gap-2 cursor-pointer group">
