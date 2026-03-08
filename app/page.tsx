@@ -1013,6 +1013,8 @@ export default function FieldTestDashboard() {
   const [executingTest, setExecutingTest] = useState<TestRecord | null>(null);
   const [finishingTest, setFinishingTest] = useState<TestRecord | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
+  const [showHistory, setShowHistory] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
   // Persistência simples
@@ -1084,9 +1086,24 @@ export default function FieldTestDashboard() {
   };
 
   const handleDeleteRecord = (id: string) => {
-    if (confirm('Tem certeza que deseja apagar este teste?')) {
-      setRecords(prev => prev.filter(r => r.id !== id));
+    const record = records.find(r => r.id === id);
+    if (!record) return;
+
+    const isCompleted = record.dataFim !== '-';
+    
+    if (isCompleted) {
+      const password = window.prompt('Este teste já foi concluído. Para apagá-lo, confirme sua senha:');
+      if (password !== currentUser?.password) {
+        alert('Senha incorreta. O registro não foi apagado.');
+        return;
+      }
+    } else {
+      if (!confirm('Tem certeza que deseja apagar este teste pendente?')) {
+        return;
+      }
     }
+
+    setRecords(prev => prev.filter(r => r.id !== id));
   };
 
   const isDriver = currentUser?.role?.toLowerCase().trim() === 'motorista de teste';
@@ -1101,6 +1118,8 @@ export default function FieldTestDashboard() {
       r.os.toLowerCase().includes(searchTerm.toLowerCase()) ||
       PERCURSOS.find(p => p.id === Number(r.percurso))?.name.toLowerCase().includes(searchTerm.toLowerCase());
     
+    const matchesDate = !dateFilter || r.dataSolicitacao === dateFilter || r.dataInicio === dateFilter || r.dataFim === dateFilter;
+    
     if (isDriver) {
       const driverFirstName = currentUser.firstName.toLowerCase();
       const driverLastName = currentUser.lastName.toLowerCase();
@@ -1110,14 +1129,14 @@ export default function FieldTestDashboard() {
                          recordMotorista.includes(driverLastName) ||
                          driverName.toLowerCase().includes(recordMotorista);
 
-      return matchesSearch && isAssigned;
+      return matchesSearch && matchesDate && isAssigned;
     }
-    return matchesSearch;
+    return matchesSearch && matchesDate;
   });
 
-  // Logic for "motorista de teste": only show the next test in the queue (FIFO)
+  // Logic for "motorista de teste": only show the next test in the queue (FIFO) unless history is toggled
   const displayRecords = (() => {
-    if (isDriver) {
+    if (isDriver && !showHistory) {
       // Prioritize tests that are already in progress (started but not finished)
       const inProgressTest = filteredRecords.find(r => r.dataInicio !== '-' && r.dataFim === '-');
       if (inProgressTest) return [inProgressTest];
@@ -1126,7 +1145,13 @@ export default function FieldTestDashboard() {
       const nextTest = filteredRecords.find(r => r.dataFim === '-');
       return nextTest ? [nextTest] : [];
     }
-    return filteredRecords;
+    
+    // Sort by date (most recent first) for history/admin view
+    return [...filteredRecords].sort((a, b) => {
+      const dateA = a.dataSolicitacao || '0000-00-00';
+      const dateB = b.dataSolicitacao || '0000-00-00';
+      return dateB.localeCompare(dateA);
+    });
   })();
 
   if (!isAuthenticated) {
@@ -1176,7 +1201,7 @@ export default function FieldTestDashboard() {
                 {currentUser && (
                   <>
                     <span className="text-zinc-700">•</span>
-                    <p className="text-xs text-sky-500 font-medium">Olá, {currentUser.firstName} ({currentUser.role})</p>
+                    <p className="text-xs text-sky-500 font-medium">Olá, {currentUser.firstName} ({currentUser.role?.trim()})</p>
                   </>
                 )}
               </div>
@@ -1184,17 +1209,57 @@ export default function FieldTestDashboard() {
           </div>
 
           <div className="flex items-center gap-3">
-            {currentUser?.role?.toLowerCase().trim() === 'motorista de teste' ? (
+            {isDriver && (
+              <button 
+                onClick={() => setShowHistory(!showHistory)}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-xl transition-all text-sm font-medium border",
+                  showHistory 
+                    ? "bg-sky-600 border-sky-500 text-white" 
+                    : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white"
+                )}
+              >
+                <ClipboardCheck size={18} />
+                <span>{showHistory ? 'Voltar para Fila' : 'Ver Histórico'}</span>
+              </button>
+            )}
+
+            <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2">
+              <Calendar size={16} className="text-zinc-500" />
+              <input 
+                type="date" 
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                className="bg-transparent text-xs text-zinc-300 outline-none [color-scheme:dark]"
+              />
+              {dateFilter && (
+                <button onClick={() => setDateFilter('')} className="text-zinc-500 hover:text-white">
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            <div className="relative group">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-sky-500 transition-colors" size={18} />
+              <input 
+                type="text" 
+                placeholder="Buscar..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="bg-zinc-900 border border-zinc-800 rounded-xl pl-10 pr-4 py-2 text-sm w-full md:w-48 focus:ring-2 focus:ring-sky-500 outline-none transition-all"
+              />
+            </div>
+
+            {isDriver ? (
               <button 
                 onClick={() => {
                   setIsVerified(false);
                   setIsAuthenticated(false);
                 }}
-                className="flex items-center gap-2 px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800 rounded-xl transition-all text-sm font-medium"
-                title="Voltar para Organização da Oficina"
+                className="p-2 bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-400 hover:text-white transition-colors"
+                title="Sair/ Organizar oficina"
               >
-                <LogOut size={18} />
-                <span className="hidden sm:inline">Sair/ Organizar oficina</span>
+                <LogOut size={20} />
               </button>
             ) : (
               <button 
@@ -1202,27 +1267,12 @@ export default function FieldTestDashboard() {
                   setIsAuthenticated(false);
                   setCurrentUser(null);
                 }}
-                className="flex items-center gap-2 px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800 rounded-xl transition-all text-sm font-medium"
-                title="Sair do Sistema"
+                className="p-2 bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-400 hover:text-white transition-colors"
+                title="Sair"
               >
-                <LogOut size={18} />
-                <span className="hidden sm:inline">Sair</span>
+                <LogOut size={20} />
               </button>
             )}
-
-            <div className="relative group">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-sky-500 transition-colors" size={18} />
-              <input 
-                type="text" 
-                placeholder="Buscar por placa, OS, motorista, percurso..." 
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="bg-zinc-900 border border-zinc-800 rounded-xl pl-10 pr-4 py-2 text-sm w-full md:w-64 focus:ring-2 focus:ring-sky-500 outline-none transition-all"
-              />
-            </div>
-            <button className="p-2 bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-400 hover:text-white transition-colors">
-              <Filter size={20} />
-            </button>
           </div>
         </div>
       </header>
@@ -1234,8 +1284,8 @@ export default function FieldTestDashboard() {
             {[
               { label: 'Total de Testes', value: records.length, icon: ClipboardCheck, color: 'text-blue-400' },
               { label: 'Hoje', value: records.filter(r => r.dataInicio === format(new Date(), 'yyyy-MM-dd')).length, icon: Calendar, color: 'text-sky-400' },
-              { label: 'Pendentes', value: records.filter(r => r.feedback.includes('Aguardando')).length, icon: Clock, color: 'text-amber-400' },
-              { label: 'Concluídos', value: records.filter(r => !r.feedback.includes('Aguardando')).length, icon: CheckCircle2, color: 'text-purple-400' },
+              { label: 'Pendentes', value: records.filter(r => r.dataFim === '-').length, icon: Clock, color: 'text-amber-400' },
+              { label: 'Concluídos', value: records.filter(r => r.dataFim !== '-').length, icon: CheckCircle2, color: 'text-purple-400' },
             ].map((stat, i) => (
               <div key={i} className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl flex items-center gap-4">
                 <div className={cn("p-3 rounded-xl bg-zinc-800", stat.color)}>
@@ -1250,7 +1300,15 @@ export default function FieldTestDashboard() {
           </div>
         )}
 
-        {/* Spreadsheet Table */}
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-lg font-bold text-white flex items-center gap-2">
+            <Truck className="text-sky-500" size={20} />
+            {isDriver ? (showHistory ? 'Histórico de Testes' : 'Fila de Testes') : 'Todos os Testes'}
+            <span className="text-xs font-medium bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded-full border border-zinc-700">
+              {displayRecords.length}
+            </span>
+          </h2>
+        </div>
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden shadow-xl">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
