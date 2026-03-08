@@ -1016,8 +1016,41 @@ export default function FieldTestDashboard() {
   const [dateFilter, setDateFilter] = useState('');
   const [showHistory, setShowHistory] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(0);
 
-  // Persistência simples
+  // Session persistence
+  useEffect(() => {
+    const savedAuth = localStorage.getItem('isAuthenticated');
+    const savedUser = localStorage.getItem('currentUser');
+    const savedVerified = localStorage.getItem('isVerified');
+    
+    if (savedAuth === 'true' && savedUser) {
+      setIsAuthenticated(true);
+      setCurrentUser(JSON.parse(savedUser));
+    }
+    if (savedVerified === 'true') {
+      setIsVerified(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isMounted) {
+      localStorage.setItem('isAuthenticated', isAuthenticated.toString());
+      if (currentUser) {
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+      } else {
+        localStorage.removeItem('currentUser');
+      }
+    }
+  }, [isAuthenticated, currentUser, isMounted]);
+
+  useEffect(() => {
+    if (isMounted) {
+      localStorage.setItem('isVerified', isVerified.toString());
+    }
+  }, [isVerified, isMounted]);
+
+  // Fetch tests with polling
   useEffect(() => {
     const fetchTests = async () => {
       try {
@@ -1027,37 +1060,39 @@ export default function FieldTestDashboard() {
         }
         const data = await response.json();
         if (Array.isArray(data)) {
-          setRecords(data);
-        } else {
-          console.error('API returned non-array data for tests:', data);
-          setRecords(INITIAL_DATA);
+          // Only update if data is different or it's the first mount
+          setRecords(prev => {
+            if (JSON.stringify(prev) !== JSON.stringify(data)) {
+              return data;
+            }
+            return prev;
+          });
         }
       } catch (error) {
         console.error('Error fetching tests:', error);
-        setRecords(INITIAL_DATA);
       } finally {
         setIsMounted(true);
       }
     };
+
     fetchTests();
+    const interval = setInterval(fetchTests, 5000); // Poll every 5 seconds
+    return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    if (isMounted) {
-      const saveTests = async () => {
-        try {
-          await fetch('/api/tests', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(records),
-          });
-        } catch (error) {
-          console.error('Error saving tests:', error);
-        }
-      };
-      saveTests();
+  // Save tests when records change (only if it was a user action)
+  // We'll use a manual trigger for saving to avoid loops with polling
+  const saveToBackend = async (data: TestRecord[]) => {
+    try {
+      await fetch('/api/tests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+    } catch (error) {
+      console.error('Error saving tests:', error);
     }
-  }, [records, isMounted]);
+  };
 
   const handleAddRecord = (newRecord: Omit<TestRecord, 'id'>) => {
     const recordWithId = {
@@ -1073,15 +1108,19 @@ export default function FieldTestDashboard() {
       kmFim: newRecord.kmFim || 0,
       feedback: newRecord.feedback || 'Aguardando início do teste...',
     };
-    setRecords(prev => [...prev, recordWithId]);
+    const newRecords = [...records, recordWithId];
+    setRecords(newRecords);
+    saveToBackend(newRecords);
     setIsFormOpen(false);
   };
 
   const handleUpdateRecord = (updatedData: Omit<TestRecord, 'id'>) => {
     if (!editingTest) return;
-    setRecords(prev => prev.map(r => 
+    const newRecords = records.map(r => 
       r.id === editingTest.id ? { ...r, ...updatedData } : r
-    ));
+    );
+    setRecords(newRecords);
+    saveToBackend(newRecords);
     setEditingTest(null);
   };
 
@@ -1103,7 +1142,29 @@ export default function FieldTestDashboard() {
       }
     }
 
-    setRecords(prev => prev.filter(r => r.id !== id));
+    const newRecords = records.filter(r => r.id !== id);
+    setRecords(newRecords);
+    saveToBackend(newRecords);
+  };
+
+  const handleStartTest = (id: string, data: any) => {
+    const newRecords = records.map(r => 
+      r.id === id 
+        ? { ...r, ...data, feedback: 'Teste em andamento...' } 
+        : r
+    );
+    setRecords(newRecords);
+    saveToBackend(newRecords);
+    setExecutingTest(null);
+  };
+
+  const handleFinishTest = (id: string, data: any) => {
+    const newRecords = records.map(r => 
+      r.id === id ? { ...r, ...data } : r
+    );
+    setRecords(newRecords);
+    saveToBackend(newRecords);
+    setFinishingTest(null);
   };
 
   const isDriver = currentUser?.role?.toLowerCase().trim() === 'motorista de teste';
@@ -1209,21 +1270,6 @@ export default function FieldTestDashboard() {
           </div>
 
           <div className="flex items-center gap-3">
-            {isDriver && (
-              <button 
-                onClick={() => setShowHistory(!showHistory)}
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-xl transition-all text-sm font-medium border",
-                  showHistory 
-                    ? "bg-sky-600 border-sky-500 text-white" 
-                    : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white"
-                )}
-              >
-                <ClipboardCheck size={18} />
-                <span>{showHistory ? 'Voltar para Fila' : 'Ver Histórico'}</span>
-              </button>
-            )}
-
             <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2">
               <Calendar size={16} className="text-zinc-500" />
               <input 
@@ -1255,6 +1301,7 @@ export default function FieldTestDashboard() {
                 onClick={() => {
                   setIsVerified(false);
                   setIsAuthenticated(false);
+                  setCurrentUser(null);
                 }}
                 className="p-2 bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-400 hover:text-white transition-colors"
                 title="Sair/ Organizar oficina"
@@ -1534,28 +1581,14 @@ export default function FieldTestDashboard() {
           <DriverStartForm 
             test={executingTest}
             onClose={() => setExecutingTest(null)}
-            onSubmit={(data) => {
-              setRecords(prev => prev.map(r => 
-                r.id === executingTest.id 
-                  ? { ...r, ...data, feedback: 'Teste em andamento...' } 
-                  : r
-              ));
-              setExecutingTest(null);
-            }}
+            onSubmit={(data) => handleStartTest(executingTest.id, data)}
           />
         )}
         {finishingTest && (
           <DriverFinishForm 
             test={finishingTest}
             onClose={() => setFinishingTest(null)}
-            onSubmit={(data) => {
-              setRecords(prev => prev.map(r => 
-                r.id === finishingTest.id 
-                  ? { ...r, ...data } 
-                  : r
-              ));
-              setFinishingTest(null);
-            }}
+            onSubmit={(data) => handleFinishTest(finishingTest.id, data)}
           />
         )}
       </AnimatePresence>
