@@ -68,8 +68,9 @@ interface TestRecord {
   os: string;
   dataSolicitacao: string;
   horaSolicitacao: string;
-  tipoVeiculo: 'Caminhão' | 'Ônibus' | 'Van';
+  tipoVeiculo: 'Caminhão' | 'Ônibus' | 'Sprinter';
   testeEngatado: 'Sim' | 'Não';
+  isDeleted?: boolean;
 }
 
 // --- Mock Data ---
@@ -535,9 +536,16 @@ const TestForm = ({ onClose, onSubmit, initialData, currentUser }: {
             <div className="p-2 bg-sky-500/10 text-sky-500 rounded-lg">
               {initialData ? <Edit size={20} /> : <Plus size={20} />}
             </div>
-            <h2 className="text-xl font-bold text-white">
-              {initialData ? 'Editar Agendamento de Teste' : 'Novo Agendamento de Teste'}
-            </h2>
+            <div>
+              <h2 className="text-xl font-bold text-white">
+                {initialData ? 'Editar Agendamento de Teste' : 'Novo Agendamento de Teste'}
+              </h2>
+              {!initialData && (
+                <p className="text-xs text-zinc-500 font-medium mt-1">
+                  Página que será preenchida as informações do teste
+                </p>
+              )}
+            </div>
           </div>
           <button onClick={onClose} className="text-zinc-500 hover:text-white transition-colors">
             <X size={24} />
@@ -646,7 +654,7 @@ const TestForm = ({ onClose, onSubmit, initialData, currentUser }: {
                   >
                     <option value="Caminhão">Caminhão</option>
                     <option value="Ônibus">Ônibus</option>
-                    <option value="Van">Van</option>
+                    <option value="Sprinter">Sprinter</option>
                   </select>
                 </div>
                 <div className="space-y-2">
@@ -1150,30 +1158,35 @@ export default function FieldTestDashboard() {
       kmFim: newRecord.kmFim || 0,
       feedback: newRecord.feedback || 'Aguardando início do teste...',
     };
-    const newRecords = [...records, recordWithId];
-    setRecords(newRecords);
-    saveToBackend(newRecords);
+    
+    setRecords(prev => {
+      const next = [...prev, recordWithId];
+      saveToBackend(next);
+      return next;
+    });
     setIsFormOpen(false);
   };
 
   const handleUpdateRecord = (updatedData: Omit<TestRecord, 'id'>) => {
     if (!editingTest) return;
-    const newRecords = records.map(r => 
-      r.id === editingTest.id ? { ...r, ...updatedData } : r
-    );
-    setRecords(newRecords);
-    saveToBackend(newRecords);
+    setRecords(prev => {
+      const next = prev.map(r => 
+        r.id === editingTest.id ? { ...r, ...updatedData } : r
+      );
+      saveToBackend(next);
+      return next;
+    });
     setEditingTest(null);
   };
 
-  const handleDeleteRecord = (id: string) => {
+  const handleDeleteRecord = async (id: string) => {
     const record = records.find(r => r.id === id);
     if (!record) return;
 
-    const isCompleted = record.dataFim !== '-';
+    const isStarted = record.dataInicio !== '-';
     
-    if (isCompleted) {
-      const password = window.prompt('Este teste já foi concluído. Para apagá-lo, confirme sua senha:');
+    if (isStarted) {
+      const password = window.prompt('Este teste já está em andamento ou concluído. Para apagá-lo, confirme sua senha:');
       if (password !== currentUser?.password) {
         alert('Senha incorreta. O registro não foi apagado.');
         return;
@@ -1184,28 +1197,34 @@ export default function FieldTestDashboard() {
       }
     }
 
-    const newRecords = records.filter(r => r.id !== id);
-    setRecords(newRecords);
-    saveToBackend(newRecords);
+    setRecords(prev => {
+      const next = prev.map(r => r.id === id ? { ...r, isDeleted: true } : r);
+      saveToBackend(next);
+      return next;
+    });
   };
 
   const handleStartTest = (id: string, data: any) => {
-    const newRecords = records.map(r => 
-      r.id === id 
-        ? { ...r, ...data, feedback: 'Teste em andamento...' } 
-        : r
-    );
-    setRecords(newRecords);
-    saveToBackend(newRecords);
+    setRecords(prev => {
+      const next = prev.map(r => 
+        r.id === id 
+          ? { ...r, ...data, feedback: 'Teste em andamento...' } 
+          : r
+      );
+      saveToBackend(next);
+      return next;
+    });
     setExecutingTest(null);
   };
 
   const handleFinishTest = (id: string, data: any) => {
-    const newRecords = records.map(r => 
-      r.id === id ? { ...r, ...data } : r
-    );
-    setRecords(newRecords);
-    saveToBackend(newRecords);
+    setRecords(prev => {
+      const next = prev.map(r => 
+        r.id === id ? { ...r, ...data } : r
+      );
+      saveToBackend(next);
+      return next;
+    });
     setFinishingTest(null);
   };
 
@@ -1213,6 +1232,8 @@ export default function FieldTestDashboard() {
   const driverName = currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : '';
 
   const filteredRecords = records.filter(r => {
+    if (r.isDeleted) return false;
+    
     const matchesSearch = 
       r.placa.toLowerCase().includes(searchTerm.toLowerCase()) ||
       r.modelo.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -1340,6 +1361,21 @@ export default function FieldTestDashboard() {
               />
             </div>
 
+            {isDriver && (
+              <button 
+                onClick={() => setShowHistory(!showHistory)}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-2 rounded-xl border transition-all text-xs font-bold",
+                  showHistory 
+                    ? "bg-sky-600 border-sky-500 text-white" 
+                    : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white"
+                )}
+              >
+                <Clock size={16} />
+                {showHistory ? 'VER FILA' : 'VER HISTÓRICO'}
+              </button>
+            )}
+
             {isDriver ? (
               <button 
                 onClick={() => {
@@ -1373,18 +1409,19 @@ export default function FieldTestDashboard() {
         {currentUser?.role?.toLowerCase().trim() !== 'motorista de teste' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { label: 'Total de Testes', value: records.length, icon: ClipboardCheck, color: 'text-blue-400' },
+              { label: 'Total de Testes', value: records.filter(r => !r.isDeleted).length, icon: ClipboardCheck, color: 'text-blue-400' },
               { 
                 label: 'Hoje', 
                 value: records.filter(r => {
+                  if (r.isDeleted) return false;
                   const today = format(new Date(), 'yyyy-MM-dd');
                   return r.dataSolicitacao === today || r.dataInicio === today || r.dataFim === today;
                 }).length, 
                 icon: Calendar, 
                 color: 'text-sky-400' 
               },
-              { label: 'Pendentes', value: records.filter(r => r.dataFim === '-').length, icon: Clock, color: 'text-amber-400' },
-              { label: 'Concluídos', value: records.filter(r => r.dataFim !== '-').length, icon: CheckCircle2, color: 'text-purple-400' },
+              { label: 'Pendentes', value: records.filter(r => !r.isDeleted && r.dataFim === '-').length, icon: Clock, color: 'text-amber-400' },
+              { label: 'Concluídos', value: records.filter(r => !r.isDeleted && r.dataFim !== '-').length, icon: CheckCircle2, color: 'text-purple-400' },
             ].map((stat, i) => (
               <div key={i} className="bg-zinc-900 border border-zinc-800 p-4 rounded-2xl flex items-center gap-4">
                 <div className={cn("p-3 rounded-xl bg-zinc-800", stat.color)}>
@@ -1573,7 +1610,16 @@ export default function FieldTestDashboard() {
                         {currentUser && record.solicitante && (currentUser.firstName + " " + currentUser.lastName).localeCompare(record.solicitante, undefined, { sensitivity: 'base' }) === 0 ? (
                           <div className="flex items-center gap-2">
                             <button 
-                              onClick={() => setEditingTest(record)}
+                              onClick={() => {
+                                if (record.dataInicio !== '-') {
+                                  const password = window.prompt('Este teste já está em andamento ou concluído. Para editá-lo, confirme sua senha:');
+                                  if (password !== currentUser?.password) {
+                                    alert('Senha incorreta. O registro não pode ser editado.');
+                                    return;
+                                  }
+                                }
+                                setEditingTest(record);
+                              }}
                               className="px-3 py-1.5 bg-amber-600/10 hover:bg-amber-600 text-amber-500 hover:text-white text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center gap-2 border border-amber-500/20 hover:border-amber-600"
                             >
                               <Edit size={12} />

@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import mongoose from 'mongoose';
 
+// Persistence: Data is stored in the 'data' directory which is preserved across app updates.
 const DATA_DIR = path.join(process.cwd(), 'data');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const TESTS_FILE = path.join(DATA_DIR, 'tests.json');
