@@ -3,7 +3,7 @@ import { getTests, saveTests } from '@/lib/storage';
 
 export async function GET() {
   try {
-    const tests = getTests();
+    const tests = await getTests();
     return NextResponse.json(tests);
   } catch (error) {
     console.error('API Tests GET Error:', error);
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     if (!Array.isArray(tests)) {
       return NextResponse.json({ error: 'Invalid tests data. Expected an array.' }, { status: 400 });
     }
-    saveTests(tests);
+    await saveTests(tests);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('API Tests POST Error:', error);

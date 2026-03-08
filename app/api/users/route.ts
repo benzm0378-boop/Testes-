@@ -3,7 +3,7 @@ import { getUsers, saveUsers } from '@/lib/storage';
 
 export async function GET() {
   try {
-    const users = getUsers();
+    const users = await getUsers();
     return NextResponse.json(users);
   } catch (error) {
     console.error('API Users GET Error:', error);
@@ -18,14 +18,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid user data' }, { status: 400 });
     }
     
-    const users = getUsers();
+    const users = await getUsers();
     
     if (users.find((u: any) => u.username === newUser.username)) {
       return NextResponse.json({ error: 'Este usuário já existe' }, { status: 400 });
     }
     
     users.push(newUser);
-    saveUsers(users);
+    await saveUsers(users);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('API Users POST Error:', error);
