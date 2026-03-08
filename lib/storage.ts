@@ -6,25 +6,38 @@ const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const TESTS_FILE = path.join(DATA_DIR, 'tests.json');
 
 // Ensure data directory exists
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR);
+try {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+} catch (err) {
+  console.error('Error creating data directory:', err);
 }
 
 // Initialize files if they don't exist
-if (!fs.existsSync(USERS_FILE)) {
-  // Default admin user: admin / admin123
-  const defaultAdmin = {
-    firstName: 'Admin',
-    lastName: 'Sistema',
-    username: 'admin',
-    role: 'administrador',
-    registration: 'admin123',
-    password: 'admin123'
-  };
-  fs.writeFileSync(USERS_FILE, JSON.stringify([defaultAdmin]));
+try {
+  if (!fs.existsSync(USERS_FILE)) {
+    // Default admin user: admin / admin123
+    const defaultAdmin = {
+      firstName: 'Admin',
+      lastName: 'Sistema',
+      username: 'admin',
+      role: 'administrador',
+      registration: 'admin123',
+      password: 'admin123'
+    };
+    fs.writeFileSync(USERS_FILE, JSON.stringify([defaultAdmin], null, 2));
+  }
+} catch (err) {
+  console.error('Error creating users file:', err);
 }
-if (!fs.existsSync(TESTS_FILE)) {
-  fs.writeFileSync(TESTS_FILE, JSON.stringify([]));
+
+try {
+  if (!fs.existsSync(TESTS_FILE)) {
+    fs.writeFileSync(TESTS_FILE, JSON.stringify([], null, 2));
+  }
+} catch (err) {
+  console.error('Error creating tests file:', err);
 }
 
 export function getUsers() {

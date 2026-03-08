@@ -92,10 +92,14 @@ const LoginScreen = ({ onLogin }: { onLogin: (user: any) => void }) => {
   const fetchUsers = async () => {
     try {
       const response = await fetch('/api/users');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
       return await response.json();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching users:', error);
-      return [];
+      throw error;
     }
   };
 
@@ -106,10 +110,14 @@ const LoginScreen = ({ onLogin }: { onLogin: (user: any) => void }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(user),
       });
-      return await response.json();
-    } catch (error) {
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        return { error: data.error || `HTTP error! status: ${response.status}` };
+      }
+      return data;
+    } catch (error: any) {
       console.error('Error saving user:', error);
-      return { error: 'Falha ao salvar usuário' };
+      return { error: 'Falha ao conectar com o servidor' };
     }
   };
 
@@ -118,38 +126,51 @@ const LoginScreen = ({ onLogin }: { onLogin: (user: any) => void }) => {
     setError('');
     setIsLoading(true);
 
-    const users = await fetchUsers();
+    try {
+      const users = await fetchUsers();
 
-    if (mode === 'signup') {
-      if (password !== confirmPassword) {
-        setError('As senhas não coincidem');
-        setIsLoading(false);
-        return;
-      }
+      if (mode === 'signup') {
+        if (password !== confirmPassword) {
+          setError('As senhas não coincidem');
+          setIsLoading(false);
+          return;
+        }
 
-      if (users.find((u: any) => u.username === username)) {
-        setError('Este usuário já existe');
-        setIsLoading(false);
-        return;
-      }
+        if (users.find((u: any) => u.username === username)) {
+          setError('Este usuário já existe');
+          setIsLoading(false);
+          return;
+        }
 
-      const result = await saveUser({ firstName, lastName, username, role, registration: password, password });
-      if (result.error) {
-        setError(result.error);
+        const result = await saveUser({ 
+          firstName, 
+          lastName, 
+          username, 
+          role, 
+          registration: password, // Use password as registration as per original logic
+          password 
+        });
+        
+        if (result.error) {
+          setError(result.error);
+        } else {
+          setMode('login');
+          setError('');
+          alert('Cadastro realizado com sucesso! Faça login para continuar.');
+        }
       } else {
-        setMode('login');
-        setError('');
-        alert('Cadastro realizado com sucesso! Faça login para continuar.');
+        const user = users.find((u: any) => u.username === username && u.password === password);
+        if (user) {
+          onLogin(user);
+        } else {
+          setError('Usuário ou senha incorretos');
+        }
       }
-    } else {
-      const user = users.find((u: any) => u.username === username && u.password === password);
-      if (user) {
-        onLogin(user);
-      } else {
-        setError('Usuário ou senha incorretos');
-      }
+    } catch (err: any) {
+      setError('Erro ao conectar com o servidor. Tente novamente.');
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const handleForgotPassword = () => {
@@ -999,8 +1020,16 @@ export default function FieldTestDashboard() {
     const fetchTests = async () => {
       try {
         const response = await fetch('/api/tests');
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
         const data = await response.json();
-        setRecords(data);
+        if (Array.isArray(data)) {
+          setRecords(data);
+        } else {
+          console.error('API returned non-array data for tests:', data);
+          setRecords(INITIAL_DATA);
+        }
       } catch (error) {
         console.error('Error fetching tests:', error);
         setRecords(INITIAL_DATA);
