@@ -68,6 +68,8 @@ interface TestRecord {
   os: string;
   dataSolicitacao: string;
   horaSolicitacao: string;
+  tipoVeiculo: 'Caminhão' | 'Ônibus' | 'Van';
+  testeEngatado: 'Sim' | 'Não';
 }
 
 // --- Mock Data ---
@@ -494,6 +496,8 @@ const TestForm = ({ onClose, onSubmit, initialData, currentUser }: {
     percurso: 1,
     dataSolicitacao: format(new Date(), 'yyyy-MM-dd'),
     horaSolicitacao: format(new Date(), 'HH:mm'),
+    tipoVeiculo: 'Caminhão',
+    testeEngatado: 'Não',
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -524,9 +528,9 @@ const TestForm = ({ onClose, onSubmit, initialData, currentUser }: {
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden my-8"
+        className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-5xl shadow-2xl overflow-hidden my-8 mx-auto"
       >
-        <div className="p-6 border-bottom border-zinc-800 flex items-center justify-between bg-zinc-900/50">
+        <div className="p-6 border-b border-zinc-800 flex items-center justify-between bg-zinc-900/50">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-sky-500/10 text-sky-500 rounded-lg">
               {initialData ? <Edit size={20} /> : <Plus size={20} />}
@@ -540,7 +544,7 @@ const TestForm = ({ onClose, onSubmit, initialData, currentUser }: {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-8">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Seção 1: Origem */}
             <div className="space-y-4">
@@ -628,6 +632,36 @@ const TestForm = ({ onClose, onSubmit, initialData, currentUser }: {
                   onChange={handleChange}
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all [&:-webkit-autofill]:shadow-[0_0_0_1000px_#09090b_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
                 />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm text-zinc-400">Tipo de Veículo</label>
+                  <select 
+                    name="tipoVeiculo"
+                    required
+                    value={formData.tipoVeiculo || ''}
+                    onChange={handleChange}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all"
+                  >
+                    <option value="Caminhão">Caminhão</option>
+                    <option value="Ônibus">Ônibus</option>
+                    <option value="Van">Van</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm text-zinc-400">Teste Engatado?</label>
+                  <select 
+                    name="testeEngatado"
+                    required
+                    value={formData.testeEngatado || ''}
+                    onChange={handleChange}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all"
+                  >
+                    <option value="Sim">Sim</option>
+                    <option value="Não">Não</option>
+                  </select>
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -763,6 +797,10 @@ const DriverStartForm = ({ test, onClose, onSubmit }: { test: TestRecord, onClos
           <div className="p-4 bg-zinc-800/50 rounded-xl border border-zinc-800 space-y-2">
             <p className="text-xs text-zinc-500 uppercase font-bold tracking-wider">Veículo</p>
             <p className="text-white font-bold">{test.placa} - {test.modelo}</p>
+            <div className="flex gap-2">
+              <span className="text-[10px] px-1.5 py-0.5 bg-zinc-700 text-zinc-300 rounded uppercase font-bold">{test.tipoVeiculo}</span>
+              <span className="text-[10px] px-1.5 py-0.5 bg-zinc-700 text-zinc-300 rounded uppercase font-bold">Engatado: {test.testeEngatado}</span>
+            </div>
             <p className="text-xs text-zinc-400">OS: {test.os}</p>
           </div>
 
@@ -872,6 +910,10 @@ const DriverFinishForm = ({ test, onClose, onSubmit }: { test: TestRecord, onClo
           <div className="p-4 bg-zinc-800/50 rounded-xl border border-zinc-800 space-y-2">
             <p className="text-xs text-zinc-500 uppercase font-bold tracking-wider">Veículo</p>
             <p className="text-white font-bold">{test.placa} - {test.modelo}</p>
+            <div className="flex gap-2">
+              <span className="text-[10px] px-1.5 py-0.5 bg-zinc-700 text-zinc-300 rounded uppercase font-bold">{test.tipoVeiculo}</span>
+              <span className="text-[10px] px-1.5 py-0.5 bg-zinc-700 text-zinc-300 rounded uppercase font-bold">Engatado: {test.testeEngatado}</span>
+            </div>
             <p className="text-xs text-zinc-400">OS: {test.os}</p>
           </div>
 
@@ -1177,6 +1219,8 @@ export default function FieldTestDashboard() {
       r.cliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
       r.motorista.toLowerCase().includes(searchTerm.toLowerCase()) ||
       r.os.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      r.tipoVeiculo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      r.testeEngatado.toLowerCase().includes(searchTerm.toLowerCase()) ||
       PERCURSOS.find(p => p.id === Number(r.percurso))?.name.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesDate = !dateFilter || r.dataSolicitacao === dateFilter || r.dataInicio === dateFilter || r.dataFim === dateFilter;
@@ -1330,7 +1374,15 @@ export default function FieldTestDashboard() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
               { label: 'Total de Testes', value: records.length, icon: ClipboardCheck, color: 'text-blue-400' },
-              { label: 'Hoje', value: records.filter(r => r.dataInicio === format(new Date(), 'yyyy-MM-dd')).length, icon: Calendar, color: 'text-sky-400' },
+              { 
+                label: 'Hoje', 
+                value: records.filter(r => {
+                  const today = format(new Date(), 'yyyy-MM-dd');
+                  return r.dataSolicitacao === today || r.dataInicio === today || r.dataFim === today;
+                }).length, 
+                icon: Calendar, 
+                color: 'text-sky-400' 
+              },
               { label: 'Pendentes', value: records.filter(r => r.dataFim === '-').length, icon: Clock, color: 'text-amber-400' },
               { label: 'Concluídos', value: records.filter(r => r.dataFim !== '-').length, icon: CheckCircle2, color: 'text-purple-400' },
             ].map((stat, i) => (
@@ -1365,6 +1417,8 @@ export default function FieldTestDashboard() {
                   <th className="px-4 py-4 whitespace-nowrap min-w-[100px]">Percurso</th>
                   <th className="px-4 py-4 whitespace-nowrap min-w-[100px]">OS</th>
                   <th className="px-4 py-4 whitespace-nowrap min-w-[160px]">Veículo</th>
+                  <th className="px-4 py-4 whitespace-nowrap min-w-[100px]">Tipo</th>
+                  <th className="px-4 py-4 whitespace-nowrap min-w-[100px]">Engatado</th>
                   <th className="px-4 py-4 whitespace-nowrap min-w-[180px]">Cliente</th>
                   <th className="px-2 py-4 whitespace-nowrap min-w-[200px]">Falha</th>
                   <th className="px-2 py-4 whitespace-nowrap min-w-[140px]">Localização</th>
@@ -1406,6 +1460,25 @@ export default function FieldTestDashboard() {
                         <span className="text-xs font-bold text-white">{record.placa}</span>
                         <span className="text-xs font-bold text-white">{record.modelo}</span>
                       </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className={cn(
+                        "px-2 py-1 rounded text-[10px] font-bold uppercase",
+                        record.tipoVeiculo === 'Caminhão' ? "bg-blue-500/10 text-blue-400 border border-blue-500/20" :
+                        record.tipoVeiculo === 'Ônibus' ? "bg-purple-500/10 text-purple-400 border border-purple-500/20" :
+                        "bg-zinc-500/10 text-zinc-400 border border-zinc-500/20"
+                      )}>
+                        {record.tipoVeiculo}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className={cn(
+                        "px-2 py-1 rounded text-[10px] font-bold uppercase",
+                        record.testeEngatado === 'Sim' ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" :
+                        "bg-zinc-500/10 text-zinc-400 border border-zinc-500/20"
+                      )}>
+                        {record.testeEngatado}
+                      </span>
                     </td>
                     <td className="px-4 py-4">
                       <span className="text-xs font-bold text-white">{record.cliente}</span>
