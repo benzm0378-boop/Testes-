@@ -1462,23 +1462,10 @@ export default function FieldTestDashboard() {
                       </div>
                     </td>
                     <td className="px-4 py-4">
-                      <span className={cn(
-                        "px-2 py-1 rounded text-[10px] font-bold uppercase",
-                        record.tipoVeiculo === 'Caminhão' ? "bg-blue-500/10 text-blue-400 border border-blue-500/20" :
-                        record.tipoVeiculo === 'Ônibus' ? "bg-purple-500/10 text-purple-400 border border-purple-500/20" :
-                        "bg-zinc-500/10 text-zinc-400 border border-zinc-500/20"
-                      )}>
-                        {record.tipoVeiculo}
-                      </span>
+                      <span className="text-xs font-bold text-white">{record.tipoVeiculo}</span>
                     </td>
                     <td className="px-4 py-4">
-                      <span className={cn(
-                        "px-2 py-1 rounded text-[10px] font-bold uppercase",
-                        record.testeEngatado === 'Sim' ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" :
-                        "bg-zinc-500/10 text-zinc-400 border border-zinc-500/20"
-                      )}>
-                        {record.testeEngatado}
-                      </span>
+                      <span className="text-xs font-bold text-white">{record.testeEngatado}</span>
                     </td>
                     <td className="px-4 py-4">
                       <span className="text-xs font-bold text-white">{record.cliente}</span>
