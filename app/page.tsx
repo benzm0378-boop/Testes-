@@ -89,53 +89,67 @@ const LoginScreen = ({ onLogin }: { onLogin: (user: any) => void }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const getUsers = () => {
-    if (typeof window === 'undefined') return [];
-    const saved = localStorage.getItem('workshop_users');
-    return saved ? JSON.parse(saved) : [];
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch('/api/users');
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      return [];
+    }
   };
 
-  const saveUser = (user: any) => {
-    const users = getUsers();
-    users.push(user);
-    localStorage.setItem('workshop_users', JSON.stringify(users));
+  const saveUser = async (user: any) => {
+    try {
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(user),
+      });
+      return await response.json();
+    } catch (error) {
+      console.error('Error saving user:', error);
+      return { error: 'Falha ao salvar usuário' };
+    }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
-    setTimeout(() => {
-      const users = getUsers();
+    const users = await fetchUsers();
 
-      if (mode === 'signup') {
-        if (password !== confirmPassword) {
-          setError('As senhas não coincidem');
-          setIsLoading(false);
-          return;
-        }
+    if (mode === 'signup') {
+      if (password !== confirmPassword) {
+        setError('As senhas não coincidem');
+        setIsLoading(false);
+        return;
+      }
 
-        if (users.find((u: any) => u.username === username)) {
-          setError('Este usuário já existe');
-          setIsLoading(false);
-          return;
-        }
+      if (users.find((u: any) => u.username === username)) {
+        setError('Este usuário já existe');
+        setIsLoading(false);
+        return;
+      }
 
-        saveUser({ firstName, lastName, username, role, registration: password, password });
+      const result = await saveUser({ firstName, lastName, username, role, registration: password, password });
+      if (result.error) {
+        setError(result.error);
+      } else {
         setMode('login');
         setError('');
         alert('Cadastro realizado com sucesso! Faça login para continuar.');
-      } else {
-        const user = users.find((u: any) => u.username === username && u.password === password);
-        if (user) {
-          onLogin(user);
-        } else {
-          setError('Usuário ou senha incorretos');
-        }
       }
-      setIsLoading(false);
-    }, 800);
+    } else {
+      const user = users.find((u: any) => u.username === username && u.password === password);
+      if (user) {
+        onLogin(user);
+      } else {
+        setError('Usuário ou senha incorretos');
+      }
+    }
+    setIsLoading(false);
   };
 
   const handleForgotPassword = () => {
@@ -982,25 +996,35 @@ export default function FieldTestDashboard() {
 
   // Persistência simples
   useEffect(() => {
-    const saved = localStorage.getItem('field_tests_v1');
-    setTimeout(() => {
-      setIsMounted(true);
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          setRecords(parsed);
-        } catch (e) {
-          setRecords(INITIAL_DATA);
-        }
-      } else {
+    const fetchTests = async () => {
+      try {
+        const response = await fetch('/api/tests');
+        const data = await response.json();
+        setRecords(data);
+      } catch (error) {
+        console.error('Error fetching tests:', error);
         setRecords(INITIAL_DATA);
+      } finally {
+        setIsMounted(true);
       }
-    }, 0);
+    };
+    fetchTests();
   }, []);
 
   useEffect(() => {
     if (isMounted) {
-      localStorage.setItem('field_tests_v1', JSON.stringify(records));
+      const saveTests = async () => {
+        try {
+          await fetch('/api/tests', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(records),
+          });
+        } catch (error) {
+          console.error('Error saving tests:', error);
+        }
+      };
+      saveTests();
     }
   }, [records, isMounted]);
 
