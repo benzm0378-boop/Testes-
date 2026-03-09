@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
 import path from 'path';
+import { randomUUID } from 'crypto';
 
 // Supabase Configuration
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -17,6 +18,7 @@ let memoryUsers: any[] | null = null;
 let memoryTests: any[] | null = null;
 
 const DEFAULT_ADMIN = {
+  id: '00000000-0000-0000-0000-000000000000',
   firstName: 'Admin',
   lastName: 'Sistema',
   username: 'admin',
@@ -67,9 +69,15 @@ export async function getUsers() {
 }
 
 export async function saveUsers(users: any[]) {
+  // Ensure all users have an ID
+  const usersWithIds = users.map(user => ({
+    ...user,
+    id: user.id || randomUUID()
+  }));
+
   if (supabase) {
-    console.log('Tentando salvar usuários no Supabase:', users.length);
-    const { error } = await supabase.from('users').upsert(users, { onConflict: 'username' });
+    console.log('Tentando salvar usuários no Supabase:', usersWithIds.length);
+    const { error } = await supabase.from('users').upsert(usersWithIds, { onConflict: 'username' });
     if (error) {
       console.error('Erro crítico no Supabase saveUsers:', error.message, error.details);
       throw new Error(`Erro ao salvar no Supabase: ${error.message}`);
@@ -79,9 +87,9 @@ export async function saveUsers(users: any[]) {
     return;
   }
 
-  memoryUsers = users;
+  memoryUsers = usersWithIds;
   try {
-    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+    fs.writeFileSync(USERS_FILE, JSON.stringify(usersWithIds, null, 2));
   } catch (error) {
     console.error('File write failed:', error);
   }
