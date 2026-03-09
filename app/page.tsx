@@ -35,7 +35,7 @@ import Image from 'next/image';
 
 type Solicitante = string;
 
-const MOTORISTAS = ['Kellver', 'Fabiano', 'Lucas', 'Rodrigo', 'Willer'];
+
 
 const PERCURSOS = [
   { id: 1, name: 'BAIRRO FLAMENGO', distance: '2 Km' },
@@ -151,8 +151,11 @@ const LoginScreen = ({ onLogin }: { onLogin: (user: any) => void }) => {
           lastName, 
           username, 
           role, 
-          registration: password, // Use password as registration as per original logic
-          password 
+          registration: password, 
+          password,
+          isActive: true,
+          presenceStatus: 'presente',
+          lastPresenceUpdate: null
         });
         
         if (result.error) {
@@ -168,6 +171,11 @@ const LoginScreen = ({ onLogin }: { onLogin: (user: any) => void }) => {
           u.password === password
         );
         if (user) {
+          if (user.isActive === false) {
+            setError('Este usuário foi desativado. Entre em contato com o administrador.');
+            setIsLoading(false);
+            return;
+          }
           onLogin(user);
         } else {
           setError('Usuário ou senha incorretos');
@@ -487,17 +495,18 @@ const WorkshopCheck = ({ onVerified }: { onVerified: () => void }) => {
   );
 };
 
-const TestForm = ({ onClose, onSubmit, initialData, currentUser }: { 
+const TestForm = ({ onClose, onSubmit, initialData, currentUser, drivers }: { 
   onClose: () => void, 
   onSubmit: (data: Omit<TestRecord, 'id'>) => void,
   initialData?: TestRecord,
-  currentUser: any
+  currentUser: any,
+  drivers: string[]
 }) => {
     const userFullName = currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : '';
     
     const [formData, setFormData] = useState<Partial<TestRecord>>(initialData || {
     solicitante: userFullName,
-    motorista: MOTORISTAS[0],
+    motorista: drivers.length > 0 ? drivers[0] : '',
     percurso: 1,
     dataSolicitacao: format(new Date(), 'yyyy-MM-dd'),
     horaSolicitacao: format(new Date(), 'HH:mm'),
@@ -736,7 +745,8 @@ const TestForm = ({ onClose, onSubmit, initialData, currentUser }: {
                   onChange={handleChange}
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all"
                 >
-                  {MOTORISTAS.map(name => (
+                  <option value="" disabled>Selecione um motorista</option>
+                  {drivers.map(name => (
                     <option key={name} value={name}>{name}</option>
                   ))}
                 </select>
@@ -1062,10 +1072,57 @@ const DriverFinishForm = ({ test, onClose, onSubmit }: { test: TestRecord, onClo
   );
 };
 
+const PresenceModal = ({ onStatusSelect }: { onStatusSelect: (status: string) => void }) => {
+  return (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-[100]">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        className="bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden p-8 text-center"
+      >
+        <div className="w-20 h-20 bg-sky-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+          <User className="text-sky-500" size={40} />
+        </div>
+        
+        <h2 className="text-2xl font-bold text-white mb-2">Confirmação de Presença</h2>
+        <p className="text-zinc-400 mb-8">Olá! Para continuar, informe seu status de disponibilidade para hoje.</p>
+        
+        <div className="grid grid-cols-1 gap-3">
+          <button
+            onClick={() => onStatusSelect('presente')}
+            className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-3 shadow-lg shadow-emerald-900/20"
+          >
+            <CheckCircle2 size={20} />
+            Estou Presente
+          </button>
+          
+          <button
+            onClick={() => onStatusSelect('ausente')}
+            className="w-full py-4 bg-red-600 hover:bg-red-500 text-white font-bold rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-3 shadow-lg shadow-red-900/20"
+          >
+            <AlertCircle size={20} />
+            Estou Ausente
+          </button>
+          
+          <button
+            onClick={() => onStatusSelect('folga')}
+            className="w-full py-4 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-3 shadow-lg shadow-amber-900/20"
+          >
+            <Calendar size={20} />
+            Estou de Folga
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
 export default function FieldTestDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [allUsers, setAllUsers] = useState<any[]>([]);
   const [isVerified, setIsVerified] = useState(false);
+  const [isPresenceVerified, setIsPresenceVerified] = useState(false);
   const [records, setRecords] = useState<TestRecord[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTest, setEditingTest] = useState<TestRecord | null>(null);
@@ -1098,6 +1155,98 @@ export default function FieldTestDashboard() {
     };
     checkDb();
   }, []);
+
+  const fetchAllUsers = async () => {
+    try {
+      const res = await fetch('/api/users');
+      if (res.ok) {
+        const data = await res.json();
+        setAllUsers(data);
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchAllUsers();
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (currentUser && currentUser.role?.toLowerCase().trim() === 'motorista de teste') {
+      const lastUpdate = currentUser.lastPresenceUpdate;
+      if (lastUpdate) {
+        const lastDate = new Date(lastUpdate).toDateString();
+        const today = new Date().toDateString();
+        if (lastDate === today) {
+          setIsPresenceVerified(true);
+        } else {
+          setIsPresenceVerified(false);
+        }
+      } else {
+        setIsPresenceVerified(false);
+      }
+    } else {
+      setIsPresenceVerified(true);
+    }
+  }, [currentUser]);
+
+  const updatePresenceStatus = async (userId: string, status: string) => {
+    try {
+      const updatedUsers = allUsers.map(u => 
+        u.id === userId ? { ...u, presenceStatus: status, lastPresenceUpdate: new Date().toISOString() } : u
+      );
+      setAllUsers(updatedUsers);
+      
+      // If updating current user, update local state too
+      if (userId === currentUser?.id) {
+        const updatedSelf = updatedUsers.find(u => u.id === userId);
+        setCurrentUser(updatedSelf);
+        localStorage.setItem('currentUser', JSON.stringify(updatedSelf));
+        setIsPresenceVerified(true);
+      }
+      
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedUsers)
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update status');
+      }
+    } catch (error) {
+      console.error('Error updating presence status:', error);
+      // Re-fetch to sync state
+      fetchAllUsers();
+    }
+  };
+
+  const toggleUserActive = async (userId: string) => {
+    if (!confirm('Tem certeza que deseja alterar o status de ativação deste usuário?')) return;
+    
+    try {
+      const updatedUsers = allUsers.map(u => 
+        u.id === userId ? { ...u, isActive: u.isActive === false ? true : false } : u
+      );
+      setAllUsers(updatedUsers);
+      
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedUsers)
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to toggle user status');
+      }
+    } catch (error) {
+      console.error('Error toggling user status:', error);
+      fetchAllUsers();
+    }
+  };
 
   // Session persistence
   useEffect(() => {
@@ -1186,6 +1335,7 @@ export default function FieldTestDashboard() {
     const recordWithId = {
       ...newRecord,
       id: Math.random().toString(36).substr(2, 9),
+      motorista: newRecord.motorista || (dynamicDrivers.length > 0 ? dynamicDrivers[0] : ''),
       // Campos que serão preenchidos pelo motorista
       dataInicio: '-',
       horaInicio: '-',
@@ -1267,7 +1417,12 @@ export default function FieldTestDashboard() {
   };
 
   const isDriver = currentUser?.role?.toLowerCase().trim() === 'motorista de teste';
+  const isAdminOrConsultant = currentUser?.role?.toLowerCase().trim() === 'administrador' || currentUser?.role?.toLowerCase().trim() === 'consultor';
   const driverName = currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : '';
+
+  const dynamicDrivers = allUsers
+    .filter(u => u.role?.toLowerCase().trim() === 'motorista de teste' && u.isActive !== false)
+    .map(u => `${u.firstName} ${u.lastName}`);
 
   const filteredRecords = records.filter(r => {
     if (r.isDeleted) return false;
@@ -1338,6 +1493,10 @@ export default function FieldTestDashboard() {
 
   if (!isVerified) {
     return <WorkshopCheck onVerified={() => setIsVerified(true)} />;
+  }
+
+  if (!isPresenceVerified) {
+    return <PresenceModal onStatusSelect={(status) => updatePresenceStatus(currentUser.id, status)} />;
   }
 
   return (
@@ -1428,6 +1587,121 @@ export default function FieldTestDashboard() {
       </header>
 
       <main className="max-w-[1600px] mx-auto p-6 space-y-6">
+        {/* Team Presence Status */}
+        <div className="bg-zinc-900/30 border border-zinc-800/50 rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-sky-500/10 rounded-lg">
+                <User className="text-sky-500" size={18} />
+              </div>
+              <div>
+                <h2 className="text-sm font-bold text-white">Status da Equipe</h2>
+                <p className="text-[10px] text-zinc-500">Disponibilidade dos motoristas para hoje</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+            {allUsers
+              .filter(u => u.role?.toLowerCase().trim() === 'motorista de teste')
+              .map(driver => {
+                const isSelf = driver.id === currentUser?.id;
+                const canEdit = isAdminOrConsultant || isSelf;
+                const status = driver.presenceStatus || 'presente';
+                const fullName = `${driver.firstName} ${driver.lastName}`;
+                const isActive = driver.isActive !== false;
+
+                if (!isActive && !isAdminOrConsultant) return null;
+
+                return (
+                  <div key={driver.id} className={cn(
+                    "bg-zinc-900/50 border rounded-xl p-3 flex flex-col gap-2 transition-all hover:border-zinc-700",
+                    isActive ? "border-zinc-800" : "border-red-900/30 opacity-60"
+                  )}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col truncate">
+                        <span className="text-[11px] font-bold text-white truncate pr-2">{fullName}</span>
+                        {!isActive && <span className="text-[8px] text-red-500 font-bold uppercase">Desligado</span>}
+                      </div>
+                      <div className={cn(
+                        "w-1.5 h-1.5 rounded-full flex-shrink-0",
+                        !isActive ? "bg-zinc-700" :
+                        status === 'presente' ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" :
+                        status === 'ausente' ? "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" :
+                        "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]"
+                      )} />
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <span className={cn(
+                        "text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-md",
+                        !isActive ? "bg-zinc-800 text-zinc-500" :
+                        status === 'presente' ? "bg-emerald-500/10 text-emerald-500" :
+                        status === 'ausente' ? "bg-red-500/10 text-red-500" :
+                        "bg-amber-500/10 text-amber-500"
+                      )}>
+                        {!isActive ? 'Inativo' : status}
+                      </span>
+                      {driver.lastPresenceUpdate && isActive && (
+                        <span className="text-[8px] text-zinc-600">
+                          {format(new Date(driver.lastPresenceUpdate), 'HH:mm')}
+                        </span>
+                      )}
+                    </div>
+
+                    {canEdit && isActive && (
+                      <div className="flex gap-1 mt-1">
+                        <button 
+                          onClick={() => updatePresenceStatus(driver.id, 'presente')}
+                          className={cn(
+                            "flex-1 py-1 text-[8px] font-bold rounded-md border transition-all",
+                            status === 'presente' ? "bg-emerald-600 border-emerald-500 text-white" : "bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300"
+                          )}
+                          title="Presente"
+                        >
+                          P
+                        </button>
+                        <button 
+                          onClick={() => updatePresenceStatus(driver.id, 'ausente')}
+                          className={cn(
+                            "flex-1 py-1 text-[8px] font-bold rounded-md border transition-all",
+                            status === 'ausente' ? "bg-red-600 border-red-500 text-white" : "bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300"
+                          )}
+                          title="Ausente"
+                        >
+                          A
+                        </button>
+                        <button 
+                          onClick={() => updatePresenceStatus(driver.id, 'folga')}
+                          className={cn(
+                            "flex-1 py-1 text-[8px] font-bold rounded-md border transition-all",
+                            status === 'folga' ? "bg-amber-600 border-amber-500 text-white" : "bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300"
+                          )}
+                          title="Folga"
+                        >
+                          F
+                        </button>
+                      </div>
+                    )}
+
+                    {isAdminOrConsultant && (
+                      <button 
+                        onClick={() => toggleUserActive(driver.id)}
+                        className={cn(
+                          "mt-1 py-1 text-[8px] font-bold rounded-md border transition-all flex items-center justify-center gap-1",
+                          isActive ? "bg-zinc-800 border-zinc-700 text-red-500 hover:bg-red-500/10" : "bg-emerald-600 border-emerald-500 text-white"
+                        )}
+                      >
+                        {isActive ? <Trash2 size={10} /> : <Plus size={10} />}
+                        {isActive ? 'Desligar' : 'Reativar'}
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+
         {/* Stats Summary */}
         {currentUser?.role?.toLowerCase().trim() !== 'motorista de teste' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1698,6 +1972,7 @@ export default function FieldTestDashboard() {
           <TestForm 
             key={editingTest?.id || 'new'}
             currentUser={currentUser}
+            drivers={dynamicDrivers}
             onClose={() => {
               setIsFormOpen(false);
               setEditingTest(null);

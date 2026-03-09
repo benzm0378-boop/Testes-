@@ -13,7 +13,16 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const newUser = await request.json();
+    const data = await request.json();
+    
+    // If it's an array, we're updating the whole list
+    if (Array.isArray(data)) {
+      await saveUsers(data);
+      return NextResponse.json({ success: true });
+    }
+
+    // Otherwise, it's a single new user
+    const newUser = data;
     if (!newUser || !newUser.username) {
       return NextResponse.json({ error: 'Invalid user data' }, { status: 400 });
     }
