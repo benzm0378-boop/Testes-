@@ -9,8 +9,9 @@ export async function GET() {
     urlSet: !!supabaseUrl,
     keySet: !!supabaseKey,
     hasNextPublicPrefix: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-    urlValue: supabaseUrl ? supabaseUrl.substring(0, 10) + '...' : 'não definido',
-    keyValue: supabaseKey ? supabaseKey.substring(0, 10) + '...' : 'não definido',
+    urlValue: supabaseUrl ? supabaseUrl.substring(0, 12) + '...' : 'não definido',
+    keyValue: supabaseKey ? supabaseKey.substring(0, 12) + '...' : 'não definido',
+    allEnvKeys: Object.keys(process.env).filter(k => k.includes('SUPABASE')),
   };
 
   if (!supabaseUrl || !supabaseKey) {
