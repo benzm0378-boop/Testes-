@@ -2,12 +2,21 @@ import { NextResponse } from 'next/server';
 import { getTests, saveTests } from '@/lib/storage';
 
 export async function GET() {
+  const start = Date.now();
   try {
+    console.log('API: Fetching tests...');
     const tests = await getTests();
+    const duration = Date.now() - start;
+    console.log(`API: Successfully fetched ${tests.length} tests in ${duration}ms`);
     return NextResponse.json(tests);
-  } catch (error) {
-    console.error('API Tests GET Error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  } catch (error: any) {
+    const duration = Date.now() - start;
+    console.error(`API Tests GET Error after ${duration}ms:`, error);
+    return NextResponse.json({ 
+      error: 'Internal Server Error', 
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    }, { status: 500 });
   }
 }
 

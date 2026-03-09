@@ -11,7 +11,7 @@ export async function GET() {
     hasNextPublicPrefix: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
     urlValue: supabaseUrl ? supabaseUrl.substring(0, 12) + '...' : 'não definido',
     keyValue: supabaseKey ? supabaseKey.substring(0, 12) + '...' : 'não definido',
-    allEnvKeys: Object.keys(process.env).filter(k => k.includes('SUPABASE')),
+    allEnvKeys: Object.keys(process.env),
   };
 
   if (!supabaseUrl || !supabaseKey) {
@@ -24,20 +24,31 @@ export async function GET() {
 
   try {
     const supabase = createClient(supabaseUrl, supabaseKey);
-    const { data, error } = await supabase.from('users').select('count', { count: 'exact', head: true });
     
-    if (error) {
+    // Check users table
+    const { error: usersError } = await supabase.from('users').select('count', { count: 'exact', head: true });
+    
+    // Check tests table
+    const { error: testsError } = await supabase.from('tests').select('count', { count: 'exact', head: true });
+    
+    const results = {
+      usersTable: usersError ? `Erro: ${usersError.message}` : 'OK',
+      testsTable: testsError ? `Erro: ${testsError.message}` : 'OK',
+    };
+
+    if (usersError || testsError) {
       return NextResponse.json({ 
         status: 'error', 
-        message: 'Erro ao conectar com o Supabase: ' + error.message,
-        details: error,
+        message: 'Problemas detectados nas tabelas do Supabase.',
+        results,
         config
       });
     }
 
     return NextResponse.json({ 
       status: 'success', 
-      message: 'Conexão com Supabase estabelecida com sucesso!',
+      message: 'Conexão com Supabase e tabelas verificada com sucesso!',
+      results,
       config
     });
   } catch (err: any) {

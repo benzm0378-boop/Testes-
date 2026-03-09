@@ -1134,7 +1134,14 @@ export default function FieldTestDashboard() {
       try {
         const response = await fetch('/api/tests');
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          let errorMsg = `HTTP error! status: ${response.status}`;
+          try {
+            const errorData = await response.json();
+            if (errorData.message) errorMsg += ` - ${errorData.message}`;
+          } catch (e) {
+            // Not JSON
+          }
+          throw new Error(errorMsg);
         }
         const data = await response.json();
         if (Array.isArray(data)) {
