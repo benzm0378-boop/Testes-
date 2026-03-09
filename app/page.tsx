@@ -1072,6 +1072,25 @@ export default function FieldTestDashboard() {
   const [showHistory, setShowHistory] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(0);
+  const [dbStatus, setDbStatus] = useState<'checking' | 'connected' | 'local'>('checking');
+
+  // Check Database Status
+  useEffect(() => {
+    const checkDb = async () => {
+      try {
+        const res = await fetch('/api/debug/supabase');
+        const data = await res.json();
+        if (data.status === 'success') {
+          setDbStatus('connected');
+        } else {
+          setDbStatus('local');
+        }
+      } catch (e) {
+        setDbStatus('local');
+      }
+    };
+    checkDb();
+  }, []);
 
   // Session persistence
   useEffect(() => {
@@ -1340,6 +1359,18 @@ export default function FieldTestDashboard() {
           </div>
 
           <div className="flex items-center gap-3">
+            {dbStatus === 'connected' ? (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 text-emerald-500 rounded-full border border-emerald-500/20 hidden sm:flex">
+                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                <span className="text-[10px] font-bold uppercase tracking-wider">Nuvem Ativa</span>
+              </div>
+            ) : dbStatus === 'local' ? (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 text-amber-500 rounded-full border border-amber-500/20 hidden sm:flex">
+                <div className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
+                <span className="text-[10px] font-bold uppercase tracking-wider">Modo Local</span>
+              </div>
+            ) : null}
+
             <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2">
               <Calendar size={16} className="text-zinc-500" />
               <input 

@@ -1,58 +1,20 @@
+import { createClient } from '@supabase/supabase-js';
 import fs from 'fs';
 import path from 'path';
-import mongoose from 'mongoose';
 
-// Persistence: Data is stored in the 'data' directory which is preserved across app updates.
+// Supabase Configuration
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : null;
+
+// Local Persistence (Fallback)
 const DATA_DIR = path.join(process.cwd(), 'data');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const TESTS_FILE = path.join(DATA_DIR, 'tests.json');
 
-// In-memory fallback for Vercel/read-only environments
 let memoryUsers: any[] | null = null;
 let memoryTests: any[] | null = null;
-
-const MONGODB_URI = process.env.MONGODB_URI || process.env.NEXT_PUBLIC_MONGODB_URI;
-
-// MongoDB Schemas
-const UserSchema = new mongoose.Schema({
-  firstName: String,
-  lastName: String,
-  username: { type: String, unique: true },
-  role: String,
-  registration: String,
-  password: { type: String, select: true }
-}, { strict: false });
-
-const TestSchema = new mongoose.Schema({
-  id: String,
-  placa: String,
-  modelo: String,
-  cliente: String,
-  motorista: String,
-  os: String,
-  percurso: String,
-  dataInicio: String,
-  horaInicio: String,
-  kmInicio: Number,
-  dataFim: String,
-  horaFim: String,
-  kmFim: Number,
-  feedback: String
-}, { strict: false });
-
-const UserModel = mongoose.models.User || mongoose.model('User', UserSchema);
-const TestModel = mongoose.models.Test || mongoose.model('Test', TestSchema);
-
-async function connectDB() {
-  if (MONGODB_URI && mongoose.connection.readyState === 0) {
-    try {
-      await mongoose.connect(MONGODB_URI);
-      console.log('Connected to MongoDB');
-    } catch (err) {
-      console.error('MongoDB connection error:', err);
-    }
-  }
-}
 
 const DEFAULT_ADMIN = {
   firstName: 'Admin',
@@ -63,23 +25,29 @@ const DEFAULT_ADMIN = {
   password: 'admin123'
 };
 
-// Ensure data directory exists (only for local dev)
-if (!MONGODB_URI) {
+// Ensure data directory exists
+if (!supabase) {
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
   } catch (err) {
-    console.error('Data directory creation failed (expected on Vercel):', err);
+    console.error('Data directory creation failed:', err);
   }
 }
 
 export async function getUsers() {
-  if (MONGODB_URI) {
-    await connectDB();
-    const users = await UserModel.find({});
-    if (users.length === 0) return [DEFAULT_ADMIN];
-    return users;
+  if (supabase) {
+    const { data, error } = await supabase.from('users').select('*');
+    if (error) {
+      console.error('Supabase getUsers error:', error);
+      return memoryUsers || [DEFAULT_ADMIN];
+    }
+    if (!data || data.length === 0) {
+      // If no users, return default admin but don't save yet
+      return [DEFAULT_ADMIN];
+    }
+    return data;
   }
 
   if (memoryUsers) return memoryUsers;
@@ -99,11 +67,14 @@ export async function getUsers() {
 }
 
 export async function saveUsers(users: any[]) {
-  if (MONGODB_URI) {
-    await connectDB();
-    // Simple sync: clear and insert all (for small datasets)
-    await UserModel.deleteMany({});
-    await UserModel.insertMany(users);
+  if (supabase) {
+    console.log('Tentando salvar usuários no Supabase:', users.length);
+    const { error } = await supabase.from('users').upsert(users, { onConflict: 'username' });
+    if (error) {
+      console.error('Erro crítico no Supabase saveUsers:', error.message, error.details);
+    } else {
+      console.log('Usuários salvos com sucesso no Supabase');
+    }
     return;
   }
 
@@ -111,15 +82,18 @@ export async function saveUsers(users: any[]) {
   try {
     fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
   } catch (error) {
-    console.error('File write failed (expected on Vercel):', error);
+    console.error('File write failed:', error);
   }
 }
 
 export async function getTests() {
-  if (MONGODB_URI) {
-    await connectDB();
-    const tests = await TestModel.find({});
-    return tests || [];
+  if (supabase) {
+    const { data, error } = await supabase.from('tests').select('*');
+    if (error) {
+      console.error('Supabase getTests error:', error);
+      return memoryTests || [];
+    }
+    return data || [];
   }
 
   if (memoryTests) return memoryTests;
@@ -139,11 +113,13 @@ export async function getTests() {
 }
 
 export async function saveTests(tests: any[]) {
-  if (MONGODB_URI) {
-    await connectDB();
-    await TestModel.deleteMany({});
-    if (tests.length > 0) {
-      await TestModel.insertMany(tests);
+  if (supabase) {
+    console.log('Tentando salvar testes no Supabase:', tests.length);
+    const { error } = await supabase.from('tests').upsert(tests, { onConflict: 'id' });
+    if (error) {
+      console.error('Erro crítico no Supabase saveTests:', error.message, error.details);
+    } else {
+      console.log('Testes salvos com sucesso no Supabase');
     }
     return;
   }
@@ -152,6 +128,6 @@ export async function saveTests(tests: any[]) {
   try {
     fs.writeFileSync(TESTS_FILE, JSON.stringify(tests, null, 2));
   } catch (error) {
-    console.error('File write failed (expected on Vercel):', error);
+    console.error('File write failed:', error);
   }
 }
