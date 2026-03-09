@@ -1435,21 +1435,6 @@ export default function FieldTestDashboard() {
               />
             </div>
 
-            {isDriver && (
-              <button 
-                onClick={() => setShowHistory(!showHistory)}
-                className={cn(
-                  "flex items-center gap-2 px-3 py-2 rounded-xl border transition-all text-xs font-bold",
-                  showHistory 
-                    ? "bg-sky-600 border-sky-500 text-white" 
-                    : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white"
-                )}
-              >
-                <Clock size={16} />
-                {showHistory ? 'VER FILA' : 'VER HISTÓRICO'}
-              </button>
-            )}
-
             {isDriver ? (
               <button 
                 onClick={() => {
