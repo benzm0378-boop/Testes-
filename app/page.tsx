@@ -537,12 +537,12 @@ const TestForm = ({ onClose, onSubmit, initialData, currentUser }: {
               {initialData ? <Edit size={20} /> : <Plus size={20} />}
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white">
-                {initialData ? 'Editar Agendamento de Teste' : 'Novo Agendamento de Teste'}
+              <h2 className="text-xl font-bold text-white tracking-tight">
+                {initialData ? 'EDITAR AGENDAMENTO' : 'NOVO TESTE'}
               </h2>
               {!initialData && (
-                <p className="text-xs text-zinc-500 font-medium mt-1">
-                  Página que será preenchida as informações do teste
+                <p className="text-[10px] text-sky-500 font-bold mt-1 uppercase tracking-[0.2em]">
+                  Preenchimento das informações do teste
                 </p>
               )}
             </div>
@@ -553,6 +553,11 @@ const TestForm = ({ onClose, onSubmit, initialData, currentUser }: {
         </div>
 
         <form onSubmit={handleSubmit} className="p-4 sm:p-8">
+          <div className="mb-8 pb-6 border-b border-zinc-800/50 hidden sm:block">
+            <h1 className="text-2xl font-black text-white uppercase tracking-tighter">Informações do Teste</h1>
+            <p className="text-zinc-500 text-xs font-medium">Preencha os dados abaixo para registrar o novo percurso no sistema.</p>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Seção 1: Origem */}
             <div className="space-y-4">
