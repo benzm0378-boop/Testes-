@@ -1181,6 +1181,9 @@ export default function FieldTestDashboard() {
   useEffect(() => {
     if (isAuthenticated) {
       fetchAllUsers();
+      // Poll users every 30 seconds to keep presence status updated
+      const interval = setInterval(fetchAllUsers, 30000);
+      return () => clearInterval(interval);
     }
   }, [isAuthenticated]);
 
@@ -1205,23 +1208,36 @@ export default function FieldTestDashboard() {
 
   const updatePresenceStatus = async (userId: string, status: string) => {
     try {
-      const updatedUsers = allUsers.map(u => 
-        u.id === userId ? { ...u, presenceStatus: status, lastPresenceUpdate: new Date().toISOString() } : u
-      );
-      setAllUsers(updatedUsers);
+      const now = new Date().toISOString();
       
-      // If updating current user, update local state too
+      // Find the user to update
+      let userToUpdate = allUsers.find(u => u.id === userId);
+      
+      // If not in allUsers (maybe not loaded yet), check if it's the current user
+      if (!userToUpdate && userId === currentUser?.id) {
+        userToUpdate = currentUser;
+      }
+
+      if (!userToUpdate) {
+        console.error('User not found for update:', userId);
+        return;
+      }
+
+      const updatedUser = { ...userToUpdate, presenceStatus: status, lastPresenceUpdate: now };
+
+      // Update local states optimistically
+      setAllUsers(prev => prev.map(u => u.id === userId ? updatedUser : u));
+      
       if (userId === currentUser?.id) {
-        const updatedSelf = updatedUsers.find(u => u.id === userId);
-        setCurrentUser(updatedSelf);
-        localStorage.setItem('currentUser', JSON.stringify(updatedSelf));
+        setCurrentUser(updatedUser);
+        localStorage.setItem('currentUser', JSON.stringify(updatedUser));
         setIsPresenceVerified(true);
       }
       
       const response = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedUsers)
+        body: JSON.stringify(updatedUser)
       });
       
       if (!response.ok) {
@@ -1229,7 +1245,6 @@ export default function FieldTestDashboard() {
       }
     } catch (error) {
       console.error('Error updating presence status:', error);
-      // Re-fetch to sync state
       fetchAllUsers();
     }
   };
@@ -1238,15 +1253,18 @@ export default function FieldTestDashboard() {
     if (!confirm('Tem certeza que deseja alterar o status de ativação deste usuário?')) return;
     
     try {
-      const updatedUsers = allUsers.map(u => 
-        u.id === userId ? { ...u, isActive: u.isActive === false ? true : false } : u
-      );
-      setAllUsers(updatedUsers);
+      const userToUpdate = allUsers.find(u => u.id === userId);
+      if (!userToUpdate) return;
+
+      const updatedUser = { ...userToUpdate, isActive: userToUpdate.isActive === false ? true : false };
+
+      // Update local state optimistically
+      setAllUsers(prev => prev.map(u => u.id === userId ? updatedUser : u));
       
       const response = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedUsers)
+        body: JSON.stringify(updatedUser)
       });
       
       if (!response.ok) {

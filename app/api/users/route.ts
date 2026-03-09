@@ -21,19 +21,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true });
     }
 
-    // Otherwise, it's a single new user
-    const newUser = data;
-    if (!newUser || !newUser.username) {
+    // Otherwise, it's a single user update or creation
+    const userData = data;
+    if (!userData || !userData.username) {
       return NextResponse.json({ error: 'Invalid user data' }, { status: 400 });
     }
     
     const users = await getUsers();
+    const existingIndex = users.findIndex((u: any) => u.username.toLowerCase().trim() === userData.username.toLowerCase().trim());
     
-    if (users.find((u: any) => u.username.toLowerCase().trim() === newUser.username.toLowerCase().trim())) {
-      return NextResponse.json({ error: 'Este usuário já existe' }, { status: 400 });
+    if (existingIndex !== -1) {
+      // Update existing user
+      users[existingIndex] = { ...users[existingIndex], ...userData };
+    } else {
+      // Create new user
+      users.push(userData);
     }
     
-    users.push(newUser);
     await saveUsers(users);
     return NextResponse.json({ success: true });
   } catch (error: any) {
