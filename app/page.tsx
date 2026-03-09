@@ -1074,14 +1074,24 @@ const DriverFinishForm = ({ test, onClose, onSubmit }: { test: TestRecord, onClo
 
 const PresenceModal = ({ onStatusSelect }: { onStatusSelect: (status: string) => void }) => {
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-[100]">
+    <div className="fixed inset-0 bg-zinc-950 flex items-center justify-center p-4 z-[100]">
       <motion.div 
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         className="bg-zinc-900 border border-zinc-800 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden p-8 text-center"
       >
-        <div className="w-20 h-20 bg-sky-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-          <User className="text-sky-500" size={40} />
+        <div className="w-32 h-32 bg-black rounded-full flex items-center justify-center mx-auto mb-8 shadow-[0_0_50px_rgba(255,255,255,0.05)] border border-zinc-800 p-4 relative group">
+          <div className="absolute inset-0 bg-gradient-to-b from-zinc-800/20 to-transparent rounded-full opacity-50" />
+          <Image 
+            src="https://www.carlogos.org/car-logos/mercedes-benz-logo.png"
+            alt="Mercedes-Benz Star"
+            width={100}
+            height={100}
+            className="object-contain relative z-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]"
+            unoptimized
+            priority
+            referrerPolicy="no-referrer"
+          />
         </div>
         
         <h2 className="text-2xl font-bold text-white mb-2">Confirmação de Presença</h2>
@@ -1491,12 +1501,12 @@ export default function FieldTestDashboard() {
     );
   }
 
-  if (!isVerified) {
-    return <WorkshopCheck onVerified={() => setIsVerified(true)} />;
-  }
-
   if (!isPresenceVerified) {
     return <PresenceModal onStatusSelect={(status) => updatePresenceStatus(currentUser.id, status)} />;
+  }
+
+  if (!isVerified) {
+    return <WorkshopCheck onVerified={() => setIsVerified(true)} />;
   }
 
   return (
