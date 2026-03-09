@@ -1373,42 +1373,6 @@ export default function FieldTestDashboard() {
           </div>
 
           <div className="flex items-center gap-3">
-            {dbStatus === 'connected' ? (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 text-emerald-500 rounded-full border border-emerald-500/20">
-                <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                <span className="text-[10px] font-bold uppercase tracking-wider">Nuvem Ativa</span>
-              </div>
-            ) : dbStatus === 'local' ? (
-              <div className="group relative flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 text-amber-500 rounded-full border border-amber-500/20 cursor-help">
-                <div className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
-                <span className="text-[10px] font-bold uppercase tracking-wider">Modo Local</span>
-                <div className="absolute top-full right-0 mt-2 w-72 p-4 bg-zinc-900 border border-zinc-800 rounded-2xl text-[11px] text-zinc-300 shadow-2xl z-50 opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0 pointer-events-none">
-                  <p className="font-bold text-amber-500 mb-2 flex items-center gap-2">
-                    <AlertTriangle size={14} />
-                    Atenção: Banco de Dados Offline
-                  </p>
-                  <p className="mb-3 leading-relaxed">
-                    {dbError || "Não foi possível detectar as chaves do Supabase nos Secrets do projeto."}
-                  </p>
-                  <div className="p-2 bg-zinc-950 rounded-lg border border-zinc-800 font-mono text-[9px] text-zinc-500">
-                    Dica: Verifique se os Secrets NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY foram adicionados.
-                  </div>
-                  <a 
-                    href="/api/debug/supabase" 
-                    target="_blank" 
-                    className="mt-3 block text-center py-2 bg-amber-500 text-black font-bold rounded-lg hover:bg-amber-400 transition-colors pointer-events-auto"
-                  >
-                    VER DIAGNÓSTICO COMPLETO
-                  </a>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-800/50 text-zinc-500 rounded-full border border-zinc-800">
-                <div className="w-1.5 h-1.5 bg-zinc-600 rounded-full animate-pulse" />
-                <span className="text-[10px] font-bold uppercase tracking-wider">Verificando...</span>
-              </div>
-            )}
-
             <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2">
               <Calendar size={16} className="text-zinc-500" />
               <input 
