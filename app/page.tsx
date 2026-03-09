@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Plus, 
@@ -1166,17 +1166,31 @@ export default function FieldTestDashboard() {
     checkDb();
   }, []);
 
-  const fetchAllUsers = async () => {
+  const fetchAllUsers = useCallback(async () => {
     try {
       const res = await fetch('/api/users');
       if (res.ok) {
         const data = await res.json();
-        setAllUsers(data);
+        
+        // Merge current user's local state if it's more recent than server data
+        const mergedData = data.map((u: any) => {
+          if (currentUser && u.id === currentUser.id) {
+            const serverDate = u.lastPresenceUpdate ? new Date(u.lastPresenceUpdate).getTime() : 0;
+            const localDate = currentUser.lastPresenceUpdate ? new Date(currentUser.lastPresenceUpdate).getTime() : 0;
+            
+            if (localDate > serverDate) {
+              return { ...u, presenceStatus: currentUser.presenceStatus, lastPresenceUpdate: currentUser.lastPresenceUpdate };
+            }
+          }
+          return u;
+        });
+        
+        setAllUsers(mergedData);
       }
     } catch (error) {
       console.error('Error fetching users:', error);
     }
-  };
+  }, [currentUser]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -1185,7 +1199,7 @@ export default function FieldTestDashboard() {
       const interval = setInterval(fetchAllUsers, 30000);
       return () => clearInterval(interval);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, fetchAllUsers]);
 
   useEffect(() => {
     if (currentUser && currentUser.role?.toLowerCase().trim() === 'motorista de teste') {
@@ -1226,7 +1240,15 @@ export default function FieldTestDashboard() {
       const updatedUser = { ...userToUpdate, presenceStatus: status, lastPresenceUpdate: now };
 
       // Update local states optimistically
-      setAllUsers(prev => prev.map(u => u.id === userId ? updatedUser : u));
+      setAllUsers(prev => {
+        const index = prev.findIndex(u => u.id === userId);
+        if (index !== -1) {
+          const newUsers = [...prev];
+          newUsers[index] = updatedUser;
+          return newUsers;
+        }
+        return [...prev, updatedUser];
+      });
       
       if (userId === currentUser?.id) {
         setCurrentUser(updatedUser);
