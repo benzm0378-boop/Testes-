@@ -72,6 +72,7 @@ interface TestRecord {
   tipoVeiculo: 'Caminhão' | 'Ônibus' | 'Sprinter';
   testeEngatado: 'Sim' | 'Não';
   isDeleted?: boolean;
+  updatedAt?: string;
 }
 
 // --- Mock Data ---
@@ -1347,12 +1348,34 @@ export default function FieldTestDashboard() {
         }
         const data = await response.json();
         if (Array.isArray(data)) {
-          // Only update if data is different or it's the first mount
           setRecords(prev => {
-            if (JSON.stringify(prev) !== JSON.stringify(data)) {
-              return data;
-            }
-            return prev;
+            // Merge logic: only update records if server has a newer version
+            // or if it's a record we don't have locally.
+            // We also preserve local records that were just updated.
+            const merged = [...prev];
+            let changed = false;
+
+            data.forEach((serverRecord: TestRecord) => {
+              const localIndex = merged.findIndex(r => r.id === serverRecord.id);
+              if (localIndex === -1) {
+                merged.push(serverRecord);
+                changed = true;
+              } else {
+                const localRecord = merged[localIndex];
+                const serverTime = serverRecord.updatedAt ? new Date(serverRecord.updatedAt).getTime() : 0;
+                const localTime = localRecord.updatedAt ? new Date(localRecord.updatedAt).getTime() : 0;
+
+                if (serverTime > localTime) {
+                  merged[localIndex] = serverRecord;
+                  changed = true;
+                }
+              }
+            });
+
+            // Handle deleted records (if they are missing from server but we have them)
+            // Actually, we use isDeleted flag, so they should be in the server data too.
+
+            return changed ? merged : prev;
           });
         }
       } catch (error) {
@@ -1369,7 +1392,7 @@ export default function FieldTestDashboard() {
 
   // Save tests when records change (only if it was a user action)
   // We'll use a manual trigger for saving to avoid loops with polling
-  const saveToBackend = async (data: TestRecord[]) => {
+  const saveToBackend = async (data: TestRecord | TestRecord[]) => {
     try {
       await fetch('/api/tests', {
         method: 'POST',
@@ -1382,7 +1405,8 @@ export default function FieldTestDashboard() {
   };
 
   const handleAddRecord = (newRecord: Omit<TestRecord, 'id'>) => {
-    const recordWithId = {
+    const now = new Date().toISOString();
+    const recordWithId: TestRecord = {
       ...newRecord,
       id: Math.random().toString(36).substr(2, 9),
       motorista: newRecord.motorista || (dynamicDrivers.length > 0 ? dynamicDrivers[0] : ''),
@@ -1395,11 +1419,12 @@ export default function FieldTestDashboard() {
       horaFim: newRecord.horaFim || '-',
       kmFim: newRecord.kmFim || 0,
       feedback: newRecord.feedback || 'Aguardando início do teste...',
+      updatedAt: now
     };
     
     setRecords(prev => {
       const next = [...prev, recordWithId];
-      saveToBackend(next);
+      saveToBackend(recordWithId);
       return next;
     });
     setIsFormOpen(false);
@@ -1407,11 +1432,12 @@ export default function FieldTestDashboard() {
 
   const handleUpdateRecord = (updatedData: Omit<TestRecord, 'id'>) => {
     if (!editingTest) return;
+    const now = new Date().toISOString();
+    const updatedRecord = { ...editingTest, ...updatedData, updatedAt: now };
+    
     setRecords(prev => {
-      const next = prev.map(r => 
-        r.id === editingTest.id ? { ...r, ...updatedData } : r
-      );
-      saveToBackend(next);
+      const next = prev.map(r => r.id === editingTest.id ? updatedRecord : r);
+      saveToBackend(updatedRecord);
       return next;
     });
     setEditingTest(null);
@@ -1435,32 +1461,39 @@ export default function FieldTestDashboard() {
       }
     }
 
+    const now = new Date().toISOString();
+    const updatedRecord = { ...record, isDeleted: true, updatedAt: now };
+
     setRecords(prev => {
-      const next = prev.map(r => r.id === id ? { ...r, isDeleted: true } : r);
-      saveToBackend(next);
+      const next = prev.map(r => r.id === id ? updatedRecord : r);
+      saveToBackend(updatedRecord);
       return next;
     });
   };
 
   const handleStartTest = (id: string, data: any) => {
+    const now = new Date().toISOString();
     setRecords(prev => {
-      const next = prev.map(r => 
-        r.id === id 
-          ? { ...r, ...data, feedback: 'Teste em andamento...' } 
-          : r
-      );
-      saveToBackend(next);
+      const recordToStart = prev.find(r => r.id === id);
+      if (!recordToStart) return prev;
+
+      const updatedRecord = { ...recordToStart, ...data, feedback: 'Teste em andamento...', updatedAt: now };
+      const next = prev.map(r => r.id === id ? updatedRecord : r);
+      saveToBackend(updatedRecord);
       return next;
     });
     setExecutingTest(null);
   };
 
   const handleFinishTest = (id: string, data: any) => {
+    const now = new Date().toISOString();
     setRecords(prev => {
-      const next = prev.map(r => 
-        r.id === id ? { ...r, ...data } : r
-      );
-      saveToBackend(next);
+      const recordToFinish = prev.find(r => r.id === id);
+      if (!recordToFinish) return prev;
+
+      const updatedRecord = { ...recordToFinish, ...data, updatedAt: now };
+      const next = prev.map(r => r.id === id ? updatedRecord : r);
+      saveToBackend(updatedRecord);
       return next;
     });
     setFinishingTest(null);
