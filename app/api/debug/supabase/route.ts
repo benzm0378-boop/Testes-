@@ -25,15 +25,17 @@ export async function GET() {
   try {
     const supabase = createClient(supabaseUrl, supabaseKey);
     
-    // Check users table
-    const { error: usersError } = await supabase.from('users').select('count', { count: 'exact', head: true });
+    // Check users table columns
+    const { data: usersData, error: usersError } = await supabase.from('users').select('*').limit(1);
     
-    // Check tests table
-    const { error: testsError } = await supabase.from('tests').select('count', { count: 'exact', head: true });
+    // Check tests table columns
+    const { data: testsData, error: testsError } = await supabase.from('tests').select('*').limit(1);
     
     const results = {
       usersTable: usersError ? `Erro: ${usersError.message}` : 'OK',
       testsTable: testsError ? `Erro: ${testsError.message}` : 'OK',
+      usersColumns: usersData && usersData.length > 0 ? Object.keys(usersData[0]) : 'Nenhum dado para verificar colunas',
+      testsColumns: testsData && testsData.length > 0 ? Object.keys(testsData[0]) : 'Nenhum dado para verificar colunas',
     };
 
     if (usersError || testsError) {

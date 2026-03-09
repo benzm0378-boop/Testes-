@@ -72,6 +72,7 @@ export async function saveUsers(users: any[]) {
     const { error } = await supabase.from('users').upsert(users, { onConflict: 'username' });
     if (error) {
       console.error('Erro crítico no Supabase saveUsers:', error.message, error.details);
+      throw new Error(`Erro ao salvar no Supabase: ${error.message}`);
     } else {
       console.log('Usuários salvos com sucesso no Supabase');
     }

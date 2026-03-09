@@ -20,15 +20,15 @@ export async function POST(request: Request) {
     
     const users = await getUsers();
     
-    if (users.find((u: any) => u.username === newUser.username)) {
+    if (users.find((u: any) => u.username.toLowerCase().trim() === newUser.username.toLowerCase().trim())) {
       return NextResponse.json({ error: 'Este usuário já existe' }, { status: 400 });
     }
     
     users.push(newUser);
     await saveUsers(users);
     return NextResponse.json({ success: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error('API Users POST Error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
   }
 }

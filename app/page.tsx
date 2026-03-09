@@ -140,7 +140,7 @@ const LoginScreen = ({ onLogin }: { onLogin: (user: any) => void }) => {
           return;
         }
 
-        if (users.find((u: any) => u.username === username)) {
+        if (users.find((u: any) => u.username.toLowerCase().trim() === username.toLowerCase().trim())) {
           setError('Este usuário já existe');
           setIsLoading(false);
           return;
@@ -163,7 +163,10 @@ const LoginScreen = ({ onLogin }: { onLogin: (user: any) => void }) => {
           alert('Cadastro realizado com sucesso! Faça login para continuar.');
         }
       } else {
-        const user = users.find((u: any) => u.username === username && u.password === password);
+        const user = users.find((u: any) => 
+          u.username.toLowerCase().trim() === username.toLowerCase().trim() && 
+          u.password === password
+        );
         if (user) {
           onLogin(user);
         } else {
