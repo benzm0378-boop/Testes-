@@ -11,16 +11,23 @@ const handle = app.getRequestHandler();
 app.prepare().then(() => {
   const server = express();
   const httpServer = createServer(server);
-  const io = new Server(httpServer);
+  const io = new Server(httpServer, {
+    cors: {
+      origin: "*",
+      methods: ["GET", "POST"]
+    }
+  });
 
   io.on('connection', (socket) => {
     console.log('Client connected:', socket.id);
 
     socket.on('presence-update', (data) => {
+      console.log('Presence update received from', socket.id, ':', data.username);
       socket.broadcast.emit('presence-updated', data);
     });
 
     socket.on('test-update', (data) => {
+      console.log('Test update received from', socket.id);
       socket.broadcast.emit('test-updated', data);
     });
 

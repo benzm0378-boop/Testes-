@@ -1147,7 +1147,14 @@ export default function FieldTestDashboard() {
   const [lastUpdated, setLastUpdated] = useState(0);
   const [dbStatus, setDbStatus] = useState<'checking' | 'connected' | 'local'>('checking');
   const [dbError, setDbError] = useState<string | null>(null);
+  const [socketConnected, setSocketConnected] = useState(false);
   const socketRef = useRef<any>(null);
+  const currentUserRef = useRef<any>(null);
+
+  // Keep currentUserRef in sync
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+  }, [currentUser]);
 
   const fetchAllUsers = useCallback(async () => {
     try {
@@ -1157,12 +1164,13 @@ export default function FieldTestDashboard() {
         
         // Merge current user's local state if it's more recent than server data
         const mergedData = data.map((u: any) => {
-          if (currentUser && u.id === currentUser.id) {
+          const currUser = currentUserRef.current;
+          if (currUser && u.id === currUser.id) {
             const serverDate = u.lastPresenceUpdate ? new Date(u.lastPresenceUpdate).getTime() : 0;
-            const localDate = currentUser.lastPresenceUpdate ? new Date(currentUser.lastPresenceUpdate).getTime() : 0;
+            const localDate = currUser.lastPresenceUpdate ? new Date(currUser.lastPresenceUpdate).getTime() : 0;
             
             if (localDate > serverDate) {
-              return { ...u, presenceStatus: currentUser.presenceStatus, lastPresenceUpdate: currentUser.lastPresenceUpdate };
+              return { ...u, presenceStatus: currUser.presenceStatus, lastPresenceUpdate: currUser.lastPresenceUpdate };
             }
           }
           return u;
@@ -1173,7 +1181,7 @@ export default function FieldTestDashboard() {
     } catch (error) {
       console.error('Error fetching users:', error);
     }
-  }, [currentUser]);
+  }, []);
 
   const fetchTests = useCallback(async () => {
     try {
@@ -1226,18 +1234,69 @@ export default function FieldTestDashboard() {
 
   // Socket initialization
   useEffect(() => {
-    socketRef.current = io();
-
-    socketRef.current.on('presence-updated', () => {
-      fetchAllUsers();
+    console.log('Initializing socket connection to:', window.location.origin);
+    socketRef.current = io(window.location.origin, {
+      transports: ['websocket', 'polling'],
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
     });
 
-    socketRef.current.on('test-updated', () => {
-      fetchTests();
+    socketRef.current.on('connect', () => {
+      console.log('Socket connected:', socketRef.current.id);
+      setSocketConnected(true);
+    });
+
+    socketRef.current.on('disconnect', () => {
+      console.log('Socket disconnected');
+      setSocketConnected(false);
+    });
+
+    socketRef.current.on('connect_error', (error: any) => {
+      console.error('Socket connection error:', error);
+      setSocketConnected(false);
+    });
+
+    socketRef.current.on('presence-updated', (data: any) => {
+      console.log('Presence updated received:', data);
+      setAllUsers(prev => {
+        const index = prev.findIndex(u => u.id === data.id);
+        if (index !== -1) {
+          const newUsers = [...prev];
+          newUsers[index] = data;
+          return newUsers;
+        }
+        return [...prev, data];
+      });
+    });
+
+    socketRef.current.on('test-updated', (data: any) => {
+      console.log('Test updated received:', data);
+      const tests = Array.isArray(data) ? data : [data];
+      setRecords(prev => {
+        const merged = [...prev];
+        let changed = false;
+        tests.forEach((serverRecord: TestRecord) => {
+          const index = merged.findIndex(r => r.id === serverRecord.id);
+          if (index === -1) {
+            merged.push(serverRecord);
+            changed = true;
+          } else {
+            const localRecord = merged[index];
+            const serverTime = serverRecord.updatedAt ? new Date(serverRecord.updatedAt).getTime() : 0;
+            const localTime = localRecord.updatedAt ? new Date(localRecord.updatedAt).getTime() : 0;
+            if (serverTime >= localTime) {
+              merged[index] = serverRecord;
+              changed = true;
+            }
+          }
+        });
+        return changed ? merged : prev;
+      });
     });
 
     return () => {
       if (socketRef.current) {
+        console.log('Disconnecting socket...');
         socketRef.current.disconnect();
       }
     };
@@ -1328,9 +1387,6 @@ export default function FieldTestDashboard() {
         setIsPresenceVerified(true);
       }
       
-      // Emit real-time update
-      socketRef.current?.emit('presence-update', updatedUser);
-      
       const response = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1340,6 +1396,9 @@ export default function FieldTestDashboard() {
       if (!response.ok) {
         throw new Error('Failed to update status');
       }
+
+      // Emit real-time update AFTER successful fetch
+      socketRef.current?.emit('presence-update', updatedUser);
     } catch (error) {
       console.error('Error updating presence status:', error);
       fetchAllUsers();
@@ -1664,6 +1723,20 @@ export default function FieldTestDashboard() {
                 className="bg-zinc-900 border border-zinc-800 rounded-xl pl-10 pr-4 py-2 text-sm w-full md:w-48 focus:ring-2 focus:ring-sky-500 outline-none transition-all"
               />
             </div>
+
+            <div 
+              className={cn(
+                "w-2 h-2 rounded-full cursor-pointer",
+                socketConnected ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"
+              )} 
+              title={socketConnected ? "Conectado em tempo real (Clique para reconectar)" : "Desconectado do tempo real (Clique para tentar reconectar)"}
+              onClick={() => {
+                if (socketRef.current) {
+                  socketRef.current.disconnect();
+                  socketRef.current.connect();
+                }
+              }}
+            />
 
             {isDriver ? (
               <button 
