@@ -1767,12 +1767,6 @@ export default function FieldTestDashboard() {
             <div className="flex flex-col">
               <div className="flex items-center gap-3 mb-1">
                 <h1 className="text-2xl font-bold text-white tracking-tight leading-none">Controle de Testes de Percurso</h1>
-                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-zinc-900 border border-zinc-800">
-                  <div className={cn("w-1.5 h-1.5 rounded-full", socketConnected ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-red-500 animate-pulse")} />
-                  <span className="text-[8px] font-bold text-zinc-400 uppercase tracking-tighter">
-                    {socketConnected ? "Online" : "Offline"}
-                  </span>
-                </div>
               </div>
               <div className="flex items-center gap-2">
                 <p className="text-xs text-zinc-500 font-semibold uppercase tracking-[0.2em]">MinasMáquinas S/A</p>
