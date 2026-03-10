@@ -80,7 +80,7 @@ export async function saveUsers(users: any[]) {
     const { error } = await supabase.from('users').upsert(usersWithIds, { onConflict: 'username' });
     if (error) {
       console.error('Erro crítico no Supabase saveUsers:', error.message, error.details);
-      throw new Error(`Erro ao salvar no Supabase: ${error.message}`);
+      throw new Error(`Erro ao salvar usuários no Supabase: ${error.message}`);
     } else {
       console.log('Usuários salvos com sucesso no Supabase');
     }
@@ -129,8 +129,8 @@ export async function getTests() {
   
   let hasChanges = false;
   const updatedTests = tests.map(test => {
-    // If test is not finished (dataFim is '-') and it's from a previous day
-    if (test.dataFim === '-' && test.dataSolicitacao && test.dataSolicitacao < todayStr && !test.isDeleted) {
+    // If test is not started (dataInicio is '-') and it's from a previous day
+    if (test.dataInicio === '-' && test.dataSolicitacao && test.dataSolicitacao < todayStr && !test.isDeleted) {
       hasChanges = true;
       return {
         ...test,
@@ -153,21 +153,29 @@ export async function getTests() {
 }
 
 export async function saveTests(tests: any[]) {
+  // Ensure all tests have an ID
+  const testsWithIds = tests.map(test => ({
+    ...test,
+    id: test.id || randomUUID()
+  }));
+
   if (supabase) {
-    console.log('Tentando salvar testes no Supabase:', tests.length);
-    const { error } = await supabase.from('tests').upsert(tests, { onConflict: 'id' });
+    console.log('Tentando salvar testes no Supabase:', testsWithIds.length);
+    const { error } = await supabase.from('tests').upsert(testsWithIds, { onConflict: 'id' });
     if (error) {
       console.error('Erro crítico no Supabase saveTests:', error.message, error.details);
+      throw new Error(`Erro ao salvar testes no Supabase: ${error.message}`);
     } else {
       console.log('Testes salvos com sucesso no Supabase');
     }
     return;
   }
 
-  memoryTests = tests;
+  memoryTests = testsWithIds;
   try {
-    fs.writeFileSync(TESTS_FILE, JSON.stringify(tests, null, 2));
+    fs.writeFileSync(TESTS_FILE, JSON.stringify(testsWithIds, null, 2));
   } catch (error) {
     console.error('File write failed:', error);
+    throw error;
   }
 }

@@ -26,21 +26,33 @@ export async function POST(request: Request) {
     
     if (Array.isArray(data)) {
       // Full array update
-      await saveTests(data);
-      return NextResponse.json({ success: true });
+      const serverNow = new Date().toISOString();
+      const testsWithTime = data.map((t: any) => ({
+        ...t,
+        updatedAt: t.updatedAt || serverNow
+      }));
+      await saveTests(testsWithTime);
+      return NextResponse.json(testsWithTime);
     } else if (data && typeof data === 'object' && data.id) {
       // Single test update
       const tests = await getTests();
       const index = tests.findIndex((t: any) => t.id === data.id);
       
+      const serverNow = new Date().toISOString();
+      const updatedRecord = { 
+        ...(index !== -1 ? tests[index] : {}), 
+        ...data,
+        updatedAt: serverNow
+      };
+
       if (index !== -1) {
-        tests[index] = { ...tests[index], ...data };
+        tests[index] = updatedRecord;
       } else {
-        tests.push(data);
+        tests.push(updatedRecord);
       }
       
       await saveTests(tests);
-      return NextResponse.json({ success: true });
+      return NextResponse.json(updatedRecord);
     } else {
       return NextResponse.json({ error: 'Invalid tests data. Expected an array or a single test object with an id.' }, { status: 400 });
     }

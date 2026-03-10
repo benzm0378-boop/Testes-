@@ -1144,11 +1144,20 @@ export default function FieldTestDashboard() {
   const [dateFilter, setDateFilter] = useState('');
   const [showHistory, setShowHistory] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [socketConnected, setSocketConnected] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(0);
   const [dbStatus, setDbStatus] = useState<'checking' | 'connected' | 'local'>('checking');
   const [dbError, setDbError] = useState<string | null>(null);
   const socketRef = useRef<any>(null);
   const currentUserRef = useRef<any>(null);
+
+  const isDriver = currentUser?.role?.toLowerCase().trim() === 'motorista de teste';
+  const isAdminOrConsultant = currentUser?.role?.toLowerCase().trim() === 'administrador' || currentUser?.role?.toLowerCase().trim() === 'consultor';
+  const driverName = currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : '';
+
+  const dynamicDrivers = allUsers
+    .filter(u => u.role?.toLowerCase().trim() === 'motorista de teste' && u.isActive !== false)
+    .map(u => `${u.firstName} ${u.lastName}`);
 
   // Keep currentUserRef in sync
   useEffect(() => {
@@ -1190,17 +1199,12 @@ export default function FieldTestDashboard() {
         try {
           const errorData = await response.json();
           if (errorData.message) errorMsg += ` - ${errorData.message}`;
-        } catch (e) {
-          // Not JSON
-        }
+        } catch (e) {}
         throw new Error(errorMsg);
       }
       const data = await response.json();
       if (Array.isArray(data)) {
         setRecords(prev => {
-          // Merge logic: only update records if server has a newer version
-          // or if it's a record we don't have locally.
-          // We also preserve local records that were just updated.
           const merged = [...prev];
           let changed = false;
 
@@ -1214,7 +1218,9 @@ export default function FieldTestDashboard() {
               const serverTime = serverRecord.updatedAt ? new Date(serverRecord.updatedAt).getTime() : 0;
               const localTime = localRecord.updatedAt ? new Date(localRecord.updatedAt).getTime() : 0;
 
-              if (serverTime > localTime) {
+              // Use a small buffer (100ms) to avoid clock skew issues
+              if (serverTime > localTime + 100) {
+                console.log(`Polling: Updating record ${serverRecord.id} (Server: ${serverTime} > Local: ${localTime})`);
                 merged[localIndex] = serverRecord;
                 changed = true;
               }
@@ -1242,10 +1248,12 @@ export default function FieldTestDashboard() {
 
     socketRef.current.on('connect', () => {
       console.log('Socket connected:', socketRef.current.id);
+      setSocketConnected(true);
     });
 
     socketRef.current.on('disconnect', () => {
       console.log('Socket disconnected');
+      setSocketConnected(false);
     });
 
     socketRef.current.on('connect_error', (error: any) => {
@@ -1266,27 +1274,46 @@ export default function FieldTestDashboard() {
     });
 
     socketRef.current.on('test-updated', (data: any) => {
-      console.log('Test updated received:', data);
+      console.log('Real-time: Test updated received:', data);
       const tests = Array.isArray(data) ? data : [data];
+      
       setRecords(prev => {
         const merged = [...prev];
         let changed = false;
+        
         tests.forEach((serverRecord: TestRecord) => {
           const index = merged.findIndex(r => r.id === serverRecord.id);
+          const serverTime = serverRecord.updatedAt ? new Date(serverRecord.updatedAt).getTime() : 0;
+          
           if (index === -1) {
+            console.log(`Real-time: Adding new record ${serverRecord.id}`);
             merged.push(serverRecord);
             changed = true;
           } else {
             const localRecord = merged[index];
-            const serverTime = serverRecord.updatedAt ? new Date(serverRecord.updatedAt).getTime() : 0;
             const localTime = localRecord.updatedAt ? new Date(localRecord.updatedAt).getTime() : 0;
-            if (serverTime >= localTime) {
+            
+            // For non-drivers (admins/consultants), always accept the update to ensure they see the latest status
+            // For drivers, only update if the server version is newer or equal (to avoid overwriting their own optimistic updates)
+            const shouldUpdate = !isDriver || serverTime >= localTime;
+            
+            if (shouldUpdate) {
+              if (serverTime < localTime) {
+                console.log(`Real-time: Force updating record ${serverRecord.id} for non-driver (Server: ${serverTime} < Local: ${localTime})`);
+              } else {
+                console.log(`Real-time: Updating record ${serverRecord.id} (Server: ${serverTime} >= Local: ${localTime})`);
+              }
               merged[index] = serverRecord;
               changed = true;
+            } else {
+              console.log(`Real-time: Ignoring older update for ${serverRecord.id} (Server: ${serverTime} < Local: ${localTime})`);
             }
           }
         });
-        console.log(`Merged ${tests.length} records from socket. Changed: ${changed}`);
+        
+        if (changed) {
+          console.log(`Real-time: State updated with ${tests.length} records`);
+        }
         return changed ? merged : prev;
       });
     });
@@ -1297,7 +1324,7 @@ export default function FieldTestDashboard() {
         socketRef.current.disconnect();
       }
     };
-  }, [fetchAllUsers, fetchTests]);
+  }, [fetchAllUsers, fetchTests, isDriver]);
 
   // Check Database Status
   useEffect(() => {
@@ -1472,7 +1499,7 @@ export default function FieldTestDashboard() {
   // We'll use a manual trigger for saving to avoid loops with polling
   const saveToBackend = async (data: TestRecord | TestRecord[]) => {
     try {
-      console.log('Saving to backend:', Array.isArray(data) ? `${data.length} records` : `record ${data.id}`);
+      console.log('API: Saving to backend...', Array.isArray(data) ? `${data.length} records` : `record ${data.id}`);
       const response = await fetch('/api/tests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1480,16 +1507,41 @@ export default function FieldTestDashboard() {
       });
       
       if (response.ok) {
-        // Emit real-time update
+        const savedData = await response.json();
+        console.log('API: Successfully saved to backend');
+        
+        // Update local state with server-confirmed data (including server-side updatedAt)
+        setRecords(prev => {
+          const tests = Array.isArray(savedData) ? savedData : [savedData];
+          const merged = [...prev];
+          let changed = false;
+          tests.forEach((serverRecord: TestRecord) => {
+            const index = merged.findIndex(r => r.id === serverRecord.id);
+            if (index !== -1) {
+              merged[index] = serverRecord;
+              changed = true;
+            } else {
+              merged.push(serverRecord);
+              changed = true;
+            }
+          });
+          return changed ? merged : prev;
+        });
+
+        // Emit real-time update using the data returned from server
         if (socketRef.current) {
-          console.log('Emitting test-update via socket');
-          socketRef.current.emit('test-update', data);
+          console.log('Socket: Emitting test-update');
+          socketRef.current.emit('test-update', savedData);
         }
+        return true;
       } else {
-        console.error('Failed to save to backend');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('API: Failed to save to backend:', response.status, errorData);
+        return false;
       }
     } catch (error) {
-      console.error('Error saving tests:', error);
+      console.error('API: Error saving tests:', error);
+      return false;
     }
   };
 
@@ -1551,44 +1603,73 @@ export default function FieldTestDashboard() {
     saveToBackend(updatedRecord);
   };
 
-  const handleStartTest = (id: string, data: any) => {
+  const handleStartTest = async (id: string, data: any) => {
     const now = new Date().toISOString();
     const recordToStart = records.find(r => r.id === id);
     if (!recordToStart) return;
 
-    // Se o motorista atual for um motorista de teste, garante que o nome dele está no registro
-    const currentDriverName = isDriver ? `${currentUser?.firstName} ${currentUser?.lastName}` : recordToStart.motorista;
+    const currentDriverName = currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : recordToStart.motorista;
 
     const updatedRecord = { 
       ...recordToStart, 
       ...data, 
+      kmInicio: Number(data.kmInicio) || 0,
       motorista: currentDriverName,
       feedback: 'Teste em andamento...', 
       updatedAt: now 
     };
+
+    console.log('Action: Starting test', id);
+    // Optimistic update
     setRecords(prev => prev.map(r => r.id === id ? updatedRecord : r));
-    saveToBackend(updatedRecord);
     setExecutingTest(null);
+
+    const success = await saveToBackend(updatedRecord);
+    if (!success) {
+      console.error('Action: Failed to start test on server');
+      alert("Erro ao iniciar o teste no servidor. Verifique sua conexão.");
+      fetchTests(); // Rollback
+    } else {
+      console.log('Action: Successfully started test on server');
+    }
   };
 
-  const handleFinishTest = (id: string, data: any) => {
+  const handleFinishTest = async (id: string, data: any) => {
     const now = new Date().toISOString();
     const recordToFinish = records.find(r => r.id === id);
     if (!recordToFinish) return;
 
-    const updatedRecord = { ...recordToFinish, ...data, updatedAt: now };
+    // Append return to workshop info to feedback
+    const returnInfo = data.retornarOficina === 'sim' 
+      ? ' [RETORNAR À OFICINA]' 
+      : ' [ESTACIONAR NO PÁTIO EXTERNO]';
+    
+    const finalFeedback = data.feedback.includes('[') 
+      ? data.feedback 
+      : `${data.feedback}${returnInfo}`;
+
+    const updatedRecord = { 
+      ...recordToFinish, 
+      ...data, 
+      feedback: finalFeedback,
+      kmFim: Number(data.kmFim) || 0,
+      updatedAt: now 
+    };
+
+    console.log('Action: Finishing test', id);
+    // Optimistic update
     setRecords(prev => prev.map(r => r.id === id ? updatedRecord : r));
-    saveToBackend(updatedRecord);
     setFinishingTest(null);
+
+    const success = await saveToBackend(updatedRecord);
+    if (!success) {
+      console.error('Action: Failed to finish test on server');
+      alert("Erro ao finalizar o teste no servidor. Verifique sua conexão.");
+      fetchTests(); // Rollback
+    } else {
+      console.log('Action: Successfully finished test on server');
+    }
   };
-
-  const isDriver = currentUser?.role?.toLowerCase().trim() === 'motorista de teste';
-  const isAdminOrConsultant = currentUser?.role?.toLowerCase().trim() === 'administrador' || currentUser?.role?.toLowerCase().trim() === 'consultor';
-  const driverName = currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : '';
-
-  const dynamicDrivers = allUsers
-    .filter(u => u.role?.toLowerCase().trim() === 'motorista de teste' && u.isActive !== false)
-    .map(u => `${u.firstName} ${u.lastName}`);
 
   const filteredRecords = records.filter(r => {
     if (r.isDeleted) return false;
@@ -1684,7 +1765,15 @@ export default function FieldTestDashboard() {
               />
             </div>
             <div className="flex flex-col">
-              <h1 className="text-2xl font-bold text-white tracking-tight leading-none mb-1">Controle de Testes de Percurso</h1>
+              <div className="flex items-center gap-3 mb-1">
+                <h1 className="text-2xl font-bold text-white tracking-tight leading-none">Controle de Testes de Percurso</h1>
+                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-zinc-900 border border-zinc-800">
+                  <div className={cn("w-1.5 h-1.5 rounded-full", socketConnected ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-red-500 animate-pulse")} />
+                  <span className="text-[8px] font-bold text-zinc-400 uppercase tracking-tighter">
+                    {socketConnected ? "Online" : "Offline"}
+                  </span>
+                </div>
+              </div>
               <div className="flex items-center gap-2">
                 <p className="text-xs text-zinc-500 font-semibold uppercase tracking-[0.2em]">MinasMáquinas S/A</p>
                 {currentUser && (
