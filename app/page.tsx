@@ -1619,18 +1619,24 @@ export default function FieldTestDashboard() {
       updatedAt: now 
     };
 
-    console.log('Action: Starting test', id);
+    console.log('Action: Starting test', id, updatedRecord);
     // Optimistic update
     setRecords(prev => prev.map(r => r.id === id ? updatedRecord : r));
     setExecutingTest(null);
 
-    const success = await saveToBackend(updatedRecord);
-    if (!success) {
-      console.error('Action: Failed to start test on server');
-      alert("Erro ao iniciar o teste no servidor. Verifique sua conexão.");
-      fetchTests(); // Rollback
-    } else {
-      console.log('Action: Successfully started test on server');
+    try {
+      const success = await saveToBackend(updatedRecord);
+      if (!success) {
+        console.error('Action: Failed to start test on server');
+        alert("Erro ao iniciar o teste no servidor. Verifique se as chaves do Supabase estão configuradas ou se há conexão com a internet.");
+        fetchTests(); // Rollback
+      } else {
+        console.log('Action: Successfully started test on server');
+      }
+    } catch (err: any) {
+      console.error('Action: Exception during test start:', err);
+      alert(`Erro inesperado: ${err.message}`);
+      fetchTests();
     }
   };
 
@@ -1656,18 +1662,24 @@ export default function FieldTestDashboard() {
       updatedAt: now 
     };
 
-    console.log('Action: Finishing test', id);
+    console.log('Action: Finishing test', id, updatedRecord);
     // Optimistic update
     setRecords(prev => prev.map(r => r.id === id ? updatedRecord : r));
     setFinishingTest(null);
 
-    const success = await saveToBackend(updatedRecord);
-    if (!success) {
-      console.error('Action: Failed to finish test on server');
-      alert("Erro ao finalizar o teste no servidor. Verifique sua conexão.");
-      fetchTests(); // Rollback
-    } else {
-      console.log('Action: Successfully finished test on server');
+    try {
+      const success = await saveToBackend(updatedRecord);
+      if (!success) {
+        console.error('Action: Failed to finish test on server');
+        alert("Erro ao finalizar o teste no servidor. Verifique sua conexão ou configuração do banco de dados.");
+        fetchTests(); // Rollback
+      } else {
+        console.log('Action: Successfully finished test on server');
+      }
+    } catch (err: any) {
+      console.error('Action: Exception during test finish:', err);
+      alert(`Erro inesperado ao finalizar: ${err.message}`);
+      fetchTests();
     }
   };
 

@@ -35,29 +35,22 @@ export async function POST(request: Request) {
       return NextResponse.json(testsWithTime);
     } else if (data && typeof data === 'object' && data.id) {
       // Single test update
-      const tests = await getTests();
-      const index = tests.findIndex((t: any) => t.id === data.id);
-      
       const serverNow = new Date().toISOString();
       const updatedRecord = { 
-        ...(index !== -1 ? tests[index] : {}), 
         ...data,
         updatedAt: serverNow
       };
 
-      if (index !== -1) {
-        tests[index] = updatedRecord;
-      } else {
-        tests.push(updatedRecord);
-      }
-      
-      await saveTests(tests);
-      return NextResponse.json(updatedRecord);
+      const result = await saveTests(updatedRecord);
+      return NextResponse.json(result);
     } else {
       return NextResponse.json({ error: 'Invalid tests data. Expected an array or a single test object with an id.' }, { status: 400 });
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('API Tests POST Error:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Internal Server Error', 
+      message: error.message 
+    }, { status: 500 });
   }
 }

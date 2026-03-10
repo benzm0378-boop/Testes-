@@ -152,30 +152,51 @@ export async function getTests() {
   return tests;
 }
 
-export async function saveTests(tests: any[]) {
+export async function saveTests(data: any | any[]) {
+  const isArray = Array.isArray(data);
+  const testsToSave = isArray ? data : [data];
+  
   // Ensure all tests have an ID
-  const testsWithIds = tests.map(test => ({
+  const testsWithIds = testsToSave.map(test => ({
     ...test,
     id: test.id || randomUUID()
   }));
 
   if (supabase) {
-    console.log('Tentando salvar testes no Supabase:', testsWithIds.length);
+    console.log(`Tentando salvar ${testsWithIds.length} teste(s) no Supabase`);
     const { error } = await supabase.from('tests').upsert(testsWithIds, { onConflict: 'id' });
     if (error) {
       console.error('Erro crítico no Supabase saveTests:', error.message, error.details);
-      throw new Error(`Erro ao salvar testes no Supabase: ${error.message}`);
+      throw new Error(`Erro ao salvar no Supabase: ${error.message}`);
     } else {
-      console.log('Testes salvos com sucesso no Supabase');
+      console.log('Dados salvos com sucesso no Supabase');
     }
-    return;
+    return isArray ? testsWithIds : testsWithIds[0];
   }
 
-  memoryTests = testsWithIds;
+  // Local fallback logic
+  if (!memoryTests) {
+    await getTests(); // Load existing tests into memory if not already there
+  }
+
+  if (isArray) {
+    memoryTests = testsWithIds;
+  } else {
+    const singleTest = testsWithIds[0];
+    const index = (memoryTests || []).findIndex(t => t.id === singleTest.id);
+    if (index !== -1) {
+      memoryTests![index] = singleTest;
+    } else {
+      memoryTests = [...(memoryTests || []), singleTest];
+    }
+  }
+
   try {
-    fs.writeFileSync(TESTS_FILE, JSON.stringify(testsWithIds, null, 2));
+    fs.writeFileSync(TESTS_FILE, JSON.stringify(memoryTests, null, 2));
   } catch (error) {
     console.error('File write failed:', error);
     throw error;
   }
+
+  return isArray ? testsWithIds : testsWithIds[0];
 }
