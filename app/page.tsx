@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { io } from 'socket.io-client';
 import { 
   Plus, 
   ClipboardCheck, 
@@ -1146,26 +1147,7 @@ export default function FieldTestDashboard() {
   const [lastUpdated, setLastUpdated] = useState(0);
   const [dbStatus, setDbStatus] = useState<'checking' | 'connected' | 'local'>('checking');
   const [dbError, setDbError] = useState<string | null>(null);
-
-  // Check Database Status
-  useEffect(() => {
-    const checkDb = async () => {
-      try {
-        const res = await fetch('/api/debug/supabase');
-        const data = await res.json();
-        if (data.status === 'success') {
-          setDbStatus('connected');
-        } else {
-          setDbStatus('local');
-          setDbError(data.message);
-        }
-      } catch (e) {
-        setDbStatus('local');
-        setDbError('Falha ao conectar com o servidor de diagnóstico.');
-      }
-    };
-    checkDb();
-  }, []);
+  const socketRef = useRef<any>(null);
 
   const fetchAllUsers = useCallback(async () => {
     try {
@@ -1192,6 +1174,95 @@ export default function FieldTestDashboard() {
       console.error('Error fetching users:', error);
     }
   }, [currentUser]);
+
+  const fetchTests = useCallback(async () => {
+    try {
+      const response = await fetch('/api/tests');
+      if (!response.ok) {
+        let errorMsg = `HTTP error! status: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          if (errorData.message) errorMsg += ` - ${errorData.message}`;
+        } catch (e) {
+          // Not JSON
+        }
+        throw new Error(errorMsg);
+      }
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        setRecords(prev => {
+          // Merge logic: only update records if server has a newer version
+          // or if it's a record we don't have locally.
+          // We also preserve local records that were just updated.
+          const merged = [...prev];
+          let changed = false;
+
+          data.forEach((serverRecord: TestRecord) => {
+            const localIndex = merged.findIndex(r => r.id === serverRecord.id);
+            if (localIndex === -1) {
+              merged.push(serverRecord);
+              changed = true;
+            } else {
+              const localRecord = merged[localIndex];
+              const serverTime = serverRecord.updatedAt ? new Date(serverRecord.updatedAt).getTime() : 0;
+              const localTime = localRecord.updatedAt ? new Date(localRecord.updatedAt).getTime() : 0;
+
+              if (serverTime > localTime) {
+                merged[localIndex] = serverRecord;
+                changed = true;
+              }
+            }
+          });
+
+          return changed ? merged : prev;
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching tests:', error);
+    } finally {
+      setIsMounted(true);
+    }
+  }, []);
+
+  // Socket initialization
+  useEffect(() => {
+    socketRef.current = io();
+
+    socketRef.current.on('presence-updated', () => {
+      fetchAllUsers();
+    });
+
+    socketRef.current.on('test-updated', () => {
+      fetchTests();
+    });
+
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
+    };
+  }, [fetchAllUsers, fetchTests]);
+
+  // Check Database Status
+  useEffect(() => {
+    const checkDb = async () => {
+      try {
+        const res = await fetch('/api/debug/supabase');
+        const data = await res.json();
+        if (data.status === 'success') {
+          setDbStatus('connected');
+        } else {
+          setDbStatus('local');
+          setDbError(data.message);
+        }
+      } catch (e) {
+        setDbStatus('local');
+        setDbError('Falha ao conectar com o servidor de diagnóstico.');
+      }
+    };
+    checkDb();
+  }, []);
+
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -1256,6 +1327,9 @@ export default function FieldTestDashboard() {
         localStorage.setItem('currentUser', JSON.stringify(updatedUser));
         setIsPresenceVerified(true);
       }
+      
+      // Emit real-time update
+      socketRef.current?.emit('presence-update', updatedUser);
       
       const response = await fetch('/api/users', {
         method: 'POST',
@@ -1333,62 +1407,10 @@ export default function FieldTestDashboard() {
 
   // Fetch tests with polling
   useEffect(() => {
-    const fetchTests = async () => {
-      try {
-        const response = await fetch('/api/tests');
-        if (!response.ok) {
-          let errorMsg = `HTTP error! status: ${response.status}`;
-          try {
-            const errorData = await response.json();
-            if (errorData.message) errorMsg += ` - ${errorData.message}`;
-          } catch (e) {
-            // Not JSON
-          }
-          throw new Error(errorMsg);
-        }
-        const data = await response.json();
-        if (Array.isArray(data)) {
-          setRecords(prev => {
-            // Merge logic: only update records if server has a newer version
-            // or if it's a record we don't have locally.
-            // We also preserve local records that were just updated.
-            const merged = [...prev];
-            let changed = false;
-
-            data.forEach((serverRecord: TestRecord) => {
-              const localIndex = merged.findIndex(r => r.id === serverRecord.id);
-              if (localIndex === -1) {
-                merged.push(serverRecord);
-                changed = true;
-              } else {
-                const localRecord = merged[localIndex];
-                const serverTime = serverRecord.updatedAt ? new Date(serverRecord.updatedAt).getTime() : 0;
-                const localTime = localRecord.updatedAt ? new Date(localRecord.updatedAt).getTime() : 0;
-
-                if (serverTime > localTime) {
-                  merged[localIndex] = serverRecord;
-                  changed = true;
-                }
-              }
-            });
-
-            // Handle deleted records (if they are missing from server but we have them)
-            // Actually, we use isDeleted flag, so they should be in the server data too.
-
-            return changed ? merged : prev;
-          });
-        }
-      } catch (error) {
-        console.error('Error fetching tests:', error);
-      } finally {
-        setIsMounted(true);
-      }
-    };
-
     fetchTests();
-    const interval = setInterval(fetchTests, 5000); // Poll every 5 seconds
+    const interval = setInterval(fetchTests, 10000); // Poll every 10 seconds as fallback
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchTests]);
 
   // Save tests when records change (only if it was a user action)
   // We'll use a manual trigger for saving to avoid loops with polling
@@ -1399,6 +1421,8 @@ export default function FieldTestDashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
+      // Emit real-time update
+      socketRef.current?.emit('test-update', data);
     } catch (error) {
       console.error('Error saving tests:', error);
     }

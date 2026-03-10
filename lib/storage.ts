@@ -96,29 +96,60 @@ export async function saveUsers(users: any[]) {
 }
 
 export async function getTests() {
+  let tests: any[] = [];
   if (supabase) {
     const { data, error } = await supabase.from('tests').select('*');
     if (error) {
       console.error('Supabase getTests error:', error);
-      return memoryTests || [];
+      tests = memoryTests || [];
+    } else {
+      tests = data || [];
     }
-    return data || [];
+  } else {
+    if (memoryTests) {
+      tests = memoryTests;
+    } else {
+      try {
+        if (fs.existsSync(TESTS_FILE)) {
+          const data = fs.readFileSync(TESTS_FILE, 'utf8');
+          memoryTests = JSON.parse(data);
+          tests = memoryTests || [];
+        }
+      } catch (error) {
+        console.error('File read failed:', error);
+      }
+    }
   }
 
-  if (memoryTests) return memoryTests;
-
-  try {
-    if (fs.existsSync(TESTS_FILE)) {
-      const data = fs.readFileSync(TESTS_FILE, 'utf8');
-      memoryTests = JSON.parse(data);
-      return memoryTests || [];
+  // Rollover logic: move unfinished tests to today if they are from the past
+  const now = new Date();
+  // Adjust to local time (assuming UTC-3 for Brazil, but let's use a simple YYYY-MM-DD comparison)
+  // The user's local time is provided: 2026-03-10
+  const todayStr = now.toISOString().split('T')[0];
+  
+  let hasChanges = false;
+  const updatedTests = tests.map(test => {
+    // If test is not finished (dataFim is '-') and it's from a previous day
+    if (test.dataFim === '-' && test.dataSolicitacao && test.dataSolicitacao < todayStr && !test.isDeleted) {
+      hasChanges = true;
+      return {
+        ...test,
+        dataSolicitacao: todayStr,
+        updatedAt: now.toISOString()
+      };
     }
-  } catch (error) {
-    console.error('File read failed:', error);
+    return test;
+  });
+
+  if (hasChanges) {
+    // Sort by original order if needed, but here we just update and save
+    // The user said "seguindo a ordem (dos mais antigos para os mais novos)"
+    // If we update all of them to today, they keep their relative order in the array.
+    await saveTests(updatedTests);
+    return updatedTests;
   }
 
-  memoryTests = [];
-  return memoryTests;
+  return tests;
 }
 
 export async function saveTests(tests: any[]) {
