@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { io } from 'socket.io-client';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 import { 
   Plus, 
   ClipboardCheck, 
@@ -25,7 +27,9 @@ import {
   EyeOff,
   Play,
   Edit,
-  Trash2
+  Trash2,
+  Download,
+  Database
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -1147,6 +1151,8 @@ export default function FieldTestDashboard() {
   const [socketConnected, setSocketConnected] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(0);
   const [dbStatus, setDbStatus] = useState<'checking' | 'connected' | 'local'>('checking');
+  const [showBackupAlert, setShowBackupAlert] = useState(false);
+  const [backupData, setBackupData] = useState<TestRecord[]>([]);
   const [dbError, setDbError] = useState<string | null>(null);
   const socketRef = useRef<any>(null);
   const currentUserRef = useRef<any>(null);
@@ -1163,6 +1169,92 @@ export default function FieldTestDashboard() {
   useEffect(() => {
     currentUserRef.current = currentUser;
   }, [currentUser]);
+
+  // Backup to localStorage to prevent data loss on container restarts
+  useEffect(() => {
+    if (records.length > 0) {
+      localStorage.setItem('tests_backup', JSON.stringify(records));
+    }
+  }, [records]);
+
+  // Check for backup on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('tests_backup');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setBackupData(parsed);
+        }
+      } catch (e) {
+        console.error('Failed to parse backup data');
+      }
+    }
+  }, []);
+
+  // Show backup alert if server is empty but we have local backup
+  useEffect(() => {
+    if (isMounted && records.length === 0 && backupData.length > 0 && dbStatus !== 'checking') {
+      setShowBackupAlert(true);
+    } else {
+      setShowBackupAlert(false);
+    }
+  }, [isMounted, records.length, backupData.length, dbStatus]);
+
+  const restoreFromBackup = async () => {
+    if (backupData.length === 0) return;
+    
+    setRecords(backupData);
+    setShowBackupAlert(false);
+    
+    // Try to sync back to server
+    try {
+      await saveToBackend(backupData);
+      alert("Dados restaurados do backup local com sucesso!");
+    } catch (err) {
+      console.error('Failed to sync backup to server:', err);
+      alert("Dados restaurados localmente, mas falha ao sincronizar com o servidor.");
+    }
+  };
+
+  const exportToExcel = () => {
+    if (records.length === 0) {
+      alert("Não há dados para exportar.");
+      return;
+    }
+
+    const dataToExport = records.map(r => ({
+      'Data Solicitação': r.dataSolicitacao,
+      'Hora Solicitação': r.horaSolicitacao,
+      'Solicitante': r.solicitante,
+      'OS': r.os,
+      'Placa': r.placa,
+      'Modelo': r.modelo,
+      'Cliente': r.cliente,
+      'Falha': r.falha,
+      'Localização': r.localizacao,
+      'Tipo Veículo': r.tipoVeiculo,
+      'Teste Engatado': r.testeEngatado,
+      'Motorista': r.motorista,
+      'Data Início': r.dataInicio,
+      'Hora Início': r.horaInicio,
+      'Km Início': r.kmInicio,
+      'Data Fim': r.dataFim,
+      'Hora Fim': r.horaFim,
+      'Km Fim': r.kmFim,
+      'Feedback': r.feedback
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Testes");
+    
+    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const data = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8' });
+    
+    const fileName = `testes_percurso_${format(new Date(), 'yyyy-MM-dd_HHmm')}.xlsx`;
+    saveAs(data, fileName);
+  };
 
   const fetchAllUsers = useCallback(async () => {
     try {
@@ -1793,6 +1885,15 @@ export default function FieldTestDashboard() {
           </div>
 
           <div className="flex items-center gap-3">
+            <button 
+              onClick={exportToExcel}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-600/10 hover:bg-emerald-600 text-emerald-500 hover:text-white text-xs font-bold rounded-xl transition-all border border-emerald-500/20 hover:border-emerald-600 shadow-lg shadow-emerald-900/10"
+              title="Exportar todos os testes para Excel"
+            >
+              <Download size={16} />
+              <span className="hidden sm:inline">EXPORTAR EXCEL</span>
+            </button>
+
             <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2">
               <Calendar size={16} className="text-zinc-500" />
               <input 
@@ -2255,6 +2356,47 @@ export default function FieldTestDashboard() {
             onClose={() => setFinishingTest(null)}
             onSubmit={(data) => handleFinishTest(finishingTest.id, data)}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Backup Recovery Alert */}
+      <AnimatePresence>
+        {showBackupAlert && (
+          <motion.div 
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-4"
+          >
+            <div className="bg-amber-500 text-amber-950 p-4 rounded-2xl shadow-2xl border border-amber-400 flex flex-col gap-3">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-amber-400/50 rounded-lg">
+                  <Database size={20} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm">Recuperação de Dados</h3>
+                  <p className="text-xs opacity-90 leading-relaxed">
+                    O servidor parece ter reiniciado e os dados locais foram perdidos. 
+                    Encontramos um backup no seu navegador com {backupData.length} registros.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button 
+                  onClick={restoreFromBackup}
+                  className="flex-1 py-2 bg-amber-950 text-amber-50 font-bold text-xs rounded-lg hover:bg-amber-900 transition-colors"
+                >
+                  RESTAURAR AGORA
+                </button>
+                <button 
+                  onClick={() => setShowBackupAlert(false)}
+                  className="px-4 py-2 bg-transparent border border-amber-950/20 text-amber-950 font-bold text-xs rounded-lg hover:bg-amber-400/50 transition-colors"
+                >
+                  Ignorar
+                </button>
+              </div>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
