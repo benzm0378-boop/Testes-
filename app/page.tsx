@@ -1147,7 +1147,6 @@ export default function FieldTestDashboard() {
   const [lastUpdated, setLastUpdated] = useState(0);
   const [dbStatus, setDbStatus] = useState<'checking' | 'connected' | 'local'>('checking');
   const [dbError, setDbError] = useState<string | null>(null);
-  const [socketConnected, setSocketConnected] = useState(false);
   const socketRef = useRef<any>(null);
   const currentUserRef = useRef<any>(null);
 
@@ -1243,17 +1242,14 @@ export default function FieldTestDashboard() {
 
     socketRef.current.on('connect', () => {
       console.log('Socket connected:', socketRef.current.id);
-      setSocketConnected(true);
     });
 
     socketRef.current.on('disconnect', () => {
       console.log('Socket disconnected');
-      setSocketConnected(false);
     });
 
     socketRef.current.on('connect_error', (error: any) => {
       console.error('Socket connection error:', error);
-      setSocketConnected(false);
     });
 
     socketRef.current.on('presence-updated', (data: any) => {
@@ -1723,20 +1719,6 @@ export default function FieldTestDashboard() {
                 className="bg-zinc-900 border border-zinc-800 rounded-xl pl-10 pr-4 py-2 text-sm w-full md:w-48 focus:ring-2 focus:ring-sky-500 outline-none transition-all"
               />
             </div>
-
-            <div 
-              className={cn(
-                "w-2 h-2 rounded-full cursor-pointer",
-                socketConnected ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"
-              )} 
-              title={socketConnected ? "Conectado em tempo real (Clique para reconectar)" : "Desconectado do tempo real (Clique para tentar reconectar)"}
-              onClick={() => {
-                if (socketRef.current) {
-                  socketRef.current.disconnect();
-                  socketRef.current.connect();
-                }
-              }}
-            />
 
             {isDriver ? (
               <button 
