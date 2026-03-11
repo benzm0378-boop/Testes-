@@ -42,7 +42,8 @@ app.prepare().then(() => {
   });
 
   const PORT = 3000;
-  httpServer.listen(PORT, () => {
-    console.log(`> Ready on http://localhost:${PORT}`);
+  httpServer.listen(PORT, '0.0.0.0', () => {
+    console.log(`> Ready on http://0.0.0.0:${PORT}`);
+    console.log(`> Environment: ${process.env.NODE_ENV || 'development'}`);
   });
 });

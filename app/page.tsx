@@ -3,8 +3,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { io } from 'socket.io-client';
-import * as XLSX from 'xlsx';
-import { saveAs } from 'file-saver';
 import { 
   Plus, 
   ClipboardCheck, 
@@ -35,6 +33,8 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 // --- Types ---
 
@@ -86,7 +86,10 @@ const INITIAL_DATA: TestRecord[] = [];
 
 // --- Components ---
 
-const LoginScreen = ({ onLogin }: { onLogin: (user: any) => void }) => {
+const LoginScreen = ({ onLogin, showNotification }: { 
+  onLogin: (user: any) => void,
+  showNotification: (message: string, type?: 'success' | 'error' | 'info') => void
+}) => {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -169,7 +172,7 @@ const LoginScreen = ({ onLogin }: { onLogin: (user: any) => void }) => {
         } else {
           setMode('login');
           setError('');
-          alert('Cadastro realizado com sucesso! Faça login para continuar.');
+          showNotification('Cadastro realizado com sucesso! Faça login para continuar.', 'success');
         }
       } else {
         const user = users.find((u: any) => 
@@ -195,7 +198,7 @@ const LoginScreen = ({ onLogin }: { onLogin: (user: any) => void }) => {
   };
 
   const handleForgotPassword = () => {
-    alert('Funcionalidade de recuperação de senha: Entre em contato com o administrador do sistema.');
+    showNotification('Funcionalidade de recuperação de senha: Entre em contato com o administrador do sistema.', 'info');
   };
 
   return (
@@ -501,12 +504,13 @@ const WorkshopCheck = ({ onVerified }: { onVerified: () => void }) => {
   );
 };
 
-const TestForm = ({ onClose, onSubmit, initialData, currentUser, drivers }: { 
+const TestForm = ({ onClose, onSubmit, initialData, currentUser, drivers, showNotification }: { 
   onClose: () => void, 
   onSubmit: (data: Omit<TestRecord, 'id'>) => void,
   initialData?: TestRecord,
   currentUser: any,
-  drivers: string[]
+  drivers: string[],
+  showNotification: (message: string, type?: 'success' | 'error' | 'info') => void
 }) => {
     const userFullName = currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : '';
     
@@ -893,7 +897,12 @@ const DriverStartForm = ({ test, onClose, onSubmit }: { test: TestRecord, onClos
   );
 };
 
-const DriverFinishForm = ({ test, onClose, onSubmit }: { test: TestRecord, onClose: () => void, onSubmit: (data: any) => void }) => {
+const DriverFinishForm = ({ test, onClose, onSubmit, showNotification }: { 
+  test: TestRecord, 
+  onClose: () => void, 
+  onSubmit: (data: any) => void,
+  showNotification: (message: string, type?: 'success' | 'error' | 'info') => void
+}) => {
   const [formData, setFormData] = useState({
     dataFim: format(new Date(), 'yyyy-MM-dd'),
     horaFim: format(new Date(), 'HH:mm'),
@@ -907,7 +916,7 @@ const DriverFinishForm = ({ test, onClose, onSubmit }: { test: TestRecord, onClo
     
     // Validação extra para garantir que todos os campos estão preenchidos
     if (!formData.dataFim || !formData.horaFim || !formData.kmFim || !formData.feedback || !formData.retornarOficina) {
-      alert("Por favor, preencha todos os campos obrigatórios.");
+      showNotification("Por favor, preencha todos os campos obrigatórios.", 'error');
       return;
     }
 
@@ -1078,6 +1087,132 @@ const DriverFinishForm = ({ test, onClose, onSubmit }: { test: TestRecord, onClo
   );
 };
 
+const Notification = ({ message, type, onClose }: { message: string, type: 'success' | 'error' | 'info', onClose: () => void }) => {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 5000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  const colors = {
+    success: 'bg-emerald-500 border-emerald-400',
+    error: 'bg-red-500 border-red-400',
+    info: 'bg-sky-500 border-sky-400'
+  };
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 50, x: '-50%' }}
+      animate={{ opacity: 1, y: 0, x: '-50%' }}
+      exit={{ opacity: 0, y: 50, x: '-50%' }}
+      className={cn(
+        "fixed bottom-8 left-1/2 z-[100] px-6 py-3 rounded-xl border text-white font-bold shadow-2xl flex items-center gap-3 min-w-[300px] justify-between",
+        colors[type]
+      )}
+    >
+      <div className="flex items-center gap-3">
+        {type === 'success' && <CheckCircle2 size={20} />}
+        {type === 'error' && <AlertCircle size={20} />}
+        {type === 'info' && <AlertCircle size={20} />}
+        <span>{message}</span>
+      </div>
+      <button onClick={onClose} className="hover:bg-white/20 p-1 rounded-lg transition-colors">
+        <X size={16} />
+      </button>
+    </motion.div>
+  );
+};
+
+const PasswordConfirmModal = ({ 
+  isOpen, 
+  onClose, 
+  onConfirm, 
+  title, 
+  currentUser 
+}: { 
+  isOpen: boolean, 
+  onClose: () => void, 
+  onConfirm: () => void, 
+  title: string,
+  currentUser: any
+}) => {
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState(false);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl w-full max-w-sm shadow-2xl"
+      >
+        <div className="flex items-center gap-3 mb-4 text-amber-500">
+          <Lock size={24} />
+          <h3 className="text-lg font-bold text-white">{title}</h3>
+        </div>
+        
+        <p className="text-zinc-400 text-sm mb-6">
+          Para realizar esta ação, por favor confirme sua senha de acesso.
+        </p>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider ml-1">Senha</label>
+            <input 
+              type="password"
+              autoFocus
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setError(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  if (password === currentUser?.password) {
+                    onConfirm();
+                    onClose();
+                  } else {
+                    setError(true);
+                  }
+                }
+              }}
+              placeholder="Digite sua senha"
+              className={cn(
+                "w-full bg-zinc-950 border rounded-xl px-4 py-3 text-white focus:ring-2 outline-none transition-all placeholder:text-zinc-700 text-sm",
+                error ? "border-red-500 focus:ring-red-500" : "border-zinc-800 focus:ring-sky-500"
+              )}
+            />
+            {error && <p className="text-red-500 text-[10px] font-bold ml-1">Senha incorreta</p>}
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button 
+              onClick={onClose}
+              className="flex-1 px-4 py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-xl transition-all active:scale-95"
+            >
+              CANCELAR
+            </button>
+            <button 
+              onClick={() => {
+                if (password === currentUser?.password) {
+                  onConfirm();
+                  onClose();
+                } else {
+                  setError(true);
+                }
+              }}
+              className="flex-1 px-4 py-3 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl transition-all active:scale-95 shadow-lg shadow-sky-900/20"
+            >
+              CONFIRMAR
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
 const PresenceModal = ({ onStatusSelect }: { onStatusSelect: (status: string) => void }) => {
   return (
     <div className="fixed inset-0 bg-zinc-950 flex items-center justify-center p-4 z-[100]">
@@ -1154,15 +1289,32 @@ export default function FieldTestDashboard() {
   const [showBackupAlert, setShowBackupAlert] = useState(false);
   const [backupData, setBackupData] = useState<TestRecord[]>([]);
   const [dbError, setDbError] = useState<string | null>(null);
+  const [passwordModal, setPasswordModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    onConfirm: () => void;
+  }>({ isOpen: false, title: '', onConfirm: () => {} });
+  const [notification, setNotification] = useState<{
+    message: string;
+    type: 'success' | 'error' | 'info';
+  } | null>(null);
+
+  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setNotification({ message, type });
+  };
+
   const socketRef = useRef<any>(null);
   const currentUserRef = useRef<any>(null);
 
-  const isDriver = currentUser?.role?.toLowerCase().trim() === 'motorista de teste';
-  const isAdminOrConsultant = currentUser?.role?.toLowerCase().trim() === 'administrador' || currentUser?.role?.toLowerCase().trim() === 'consultor';
+  const isDriver = currentUser?.role?.toLowerCase().trim().includes('motorista');
+  const isAdminOrConsultant = currentUser?.role?.toLowerCase().trim().includes('administrador') || 
+                              currentUser?.role?.toLowerCase().trim().includes('consultor') ||
+                              currentUser?.role?.toLowerCase().trim().includes('admin') ||
+                              currentUser?.username?.toLowerCase() === 'admin';
   const driverName = currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : '';
 
   const dynamicDrivers = allUsers
-    .filter(u => u.role?.toLowerCase().trim() === 'motorista de teste' && u.isActive !== false)
+    .filter(u => u.role?.toLowerCase().trim().includes('motorista') && u.isActive !== false)
     .map(u => `${u.firstName} ${u.lastName}`);
 
   // Keep currentUserRef in sync
@@ -1210,50 +1362,66 @@ export default function FieldTestDashboard() {
     // Try to sync back to server
     try {
       await saveToBackend(backupData);
-      alert("Dados restaurados do backup local com sucesso!");
+      showNotification("Dados restaurados do backup local com sucesso!", 'success');
     } catch (err) {
       console.error('Failed to sync backup to server:', err);
-      alert("Dados restaurados localmente, mas falha ao sincronizar com o servidor.");
+      showNotification("Dados restaurados localmente, mas falha ao sincronizar com o servidor.", 'error');
     }
   };
 
-  const exportToExcel = () => {
+  const handleExport = () => {
     if (records.length === 0) {
-      alert("Não há dados para exportar.");
+      showNotification("Não há registros para exportar.", 'info');
       return;
     }
 
-    const dataToExport = records.map(r => ({
-      'Data Solicitação': r.dataSolicitacao,
-      'Hora Solicitação': r.horaSolicitacao,
-      'Solicitante': r.solicitante,
-      'OS': r.os,
-      'Placa': r.placa,
-      'Modelo': r.modelo,
-      'Cliente': r.cliente,
-      'Falha': r.falha,
-      'Localização': r.localizacao,
-      'Tipo Veículo': r.tipoVeiculo,
-      'Teste Engatado': r.testeEngatado,
-      'Motorista': r.motorista,
-      'Data Início': r.dataInicio,
-      'Hora Início': r.horaInicio,
-      'Km Início': r.kmInicio,
-      'Data Fim': r.dataFim,
-      'Hora Fim': r.horaFim,
-      'Km Fim': r.kmFim,
-      'Feedback': r.feedback
-    }));
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4'
+    });
 
-    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Testes");
+    // Add title
+    doc.setFontSize(18);
+    doc.setTextColor(40);
+    doc.text('Relatório de Testes de Percurso', 14, 22);
     
-    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-    const data = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8' });
-    
-    const fileName = `testes_percurso_${format(new Date(), 'yyyy-MM-dd_HHmm')}.xlsx`;
-    saveAs(data, fileName);
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Gerado em: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, 14, 28);
+    doc.text(`Total de registros: ${records.length}`, 14, 33);
+
+    const tableColumn = [
+      "Data", "Solicitante", "Placa", "Modelo", "Percurso", "KM Início", "KM Fim", "Motorista", "Status"
+    ];
+
+    const tableRows = records.map(record => {
+      const percursoName = PERCURSOS.find(p => p.id === record.percurso)?.name || record.percurso;
+      const status = record.dataFim ? 'Finalizado' : 'Em Aberto';
+      return [
+        record.dataSolicitacao || record.dataInicio || '-',
+        record.solicitante,
+        record.placa,
+        record.modelo,
+        percursoName,
+        record.kmInicio || '-',
+        record.kmFim || '-',
+        record.motorista,
+        status
+      ];
+    });
+
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 40,
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [14, 165, 233], textColor: 255, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [245, 245, 245] },
+      margin: { top: 40 },
+    });
+
+    doc.save(`relatorio_testes_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
   };
 
   const fetchAllUsers = useCallback(async () => {
@@ -1333,9 +1501,11 @@ export default function FieldTestDashboard() {
   useEffect(() => {
     console.log('Initializing socket connection to:', window.location.origin);
     socketRef.current = io(window.location.origin, {
-      transports: ['websocket', 'polling'],
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
+      path: '/socket.io/',
+      transports: ['polling', 'websocket'], // Try polling first for better compatibility
+      reconnectionAttempts: 10,
+      reconnectionDelay: 2000,
+      secure: window.location.protocol === 'https:',
     });
 
     socketRef.current.on('connect', () => {
@@ -1350,6 +1520,8 @@ export default function FieldTestDashboard() {
 
     socketRef.current.on('connect_error', (error: any) => {
       console.error('Socket connection error:', error);
+      console.log('Socket transport used:', socketRef.current?.io?.engine?.transport?.name);
+      console.log('Socket URI:', socketRef.current?.io?.uri);
     });
 
     socketRef.current.on('presence-updated', (data: any) => {
@@ -1662,6 +1834,21 @@ export default function FieldTestDashboard() {
 
   const handleUpdateRecord = (updatedData: Omit<TestRecord, 'id'>) => {
     if (!editingTest) return;
+
+    // Double check permission
+    const normalize = (s: string) => s?.trim().toLowerCase().replace(/\s+/g, ' ') || "";
+    const userFullName = (currentUser?.firstName || "") + " " + (currentUser?.lastName || "");
+    const isOwner = currentUser && editingTest.solicitante && (
+      normalize(userFullName) === normalize(editingTest.solicitante) ||
+      normalize(currentUser.username) === normalize(editingTest.solicitante)
+    );
+    const canEdit = isOwner || isAdminOrConsultant;
+
+    if (!canEdit) {
+      showNotification('Você não tem permissão para editar este registro.', 'error');
+      return;
+    }
+
     const now = new Date().toISOString();
     const updatedRecord = { ...editingTest, ...updatedData, updatedAt: now };
     
@@ -1674,25 +1861,39 @@ export default function FieldTestDashboard() {
     const record = records.find(r => r.id === id);
     if (!record) return;
 
-    const isStarted = record.dataInicio !== '-';
-    
-    if (isStarted) {
-      const password = window.prompt('Este teste já está em andamento ou concluído. Para apagá-lo, confirme sua senha:');
-      if (password !== currentUser?.password) {
-        alert('Senha incorreta. O registro não foi apagado.');
-        return;
-      }
-    } else {
-      if (!confirm('Tem certeza que deseja apagar este teste pendente?')) {
-        return;
-      }
+    // Double check permission
+    const normalize = (s: string) => s?.trim().toLowerCase().replace(/\s+/g, ' ') || "";
+    const userFullName = (currentUser?.firstName || "") + " " + (currentUser?.lastName || "");
+    const isOwner = currentUser && record.solicitante && (
+      normalize(userFullName) === normalize(record.solicitante) ||
+      normalize(currentUser.username) === normalize(record.solicitante)
+    );
+    const canDelete = isOwner || isAdminOrConsultant;
+
+    if (!canDelete) {
+      showNotification('Você não tem permissão para apagar este registro.', 'error');
+      return;
     }
 
-    const now = new Date().toISOString();
-    const updatedRecord = { ...record, isDeleted: true, updatedAt: now };
+    const isConcluido = record.dataFim !== '-';
+    
+    if (isConcluido) {
+      showNotification('Não é autorizado apagar testes concluídos.', 'error');
+      return;
+    }
 
-    setRecords(prev => prev.map(r => r.id === id ? updatedRecord : r));
-    saveToBackend(updatedRecord);
+    // Para testes em andamento ou aguardando início, solicitar senha via modal
+    setPasswordModal({
+      isOpen: true,
+      title: 'Confirmar Exclusão',
+      onConfirm: () => {
+        const now = new Date().toISOString();
+        const updatedRecord = { ...record, isDeleted: true, updatedAt: now };
+        setRecords(prev => prev.map(r => r.id === id ? updatedRecord : r));
+        saveToBackend(updatedRecord);
+        showNotification('Registro apagado com sucesso.', 'success');
+      }
+    });
   };
 
   const handleStartTest = async (id: string, data: any) => {
@@ -1720,14 +1921,14 @@ export default function FieldTestDashboard() {
       const success = await saveToBackend(updatedRecord);
       if (!success) {
         console.error('Action: Failed to start test on server');
-        alert("Erro ao iniciar o teste no servidor. Verifique se as chaves do Supabase estão configuradas ou se há conexão com a internet.");
-        fetchTests(); // Rollback
+        // Removed intrusive alert, relying on console and optimistic update
+        // fetchTests(); // Rollback if absolutely necessary, but let's keep it for now
       } else {
         console.log('Action: Successfully started test on server');
       }
     } catch (err: any) {
       console.error('Action: Exception during test start:', err);
-      alert(`Erro inesperado: ${err.message}`);
+      // alert(`Erro inesperado: ${err.message}`);
       fetchTests();
     }
   };
@@ -1763,14 +1964,13 @@ export default function FieldTestDashboard() {
       const success = await saveToBackend(updatedRecord);
       if (!success) {
         console.error('Action: Failed to finish test on server');
-        alert("Erro ao finalizar o teste no servidor. Verifique sua conexão ou configuração do banco de dados.");
-        fetchTests(); // Rollback
+        // Removed intrusive alert
       } else {
         console.log('Action: Successfully finished test on server');
       }
     } catch (err: any) {
       console.error('Action: Exception during test finish:', err);
-      alert(`Erro inesperado ao finalizar: ${err.message}`);
+      // alert(`Erro inesperado ao finalizar: ${err.message}`);
       fetchTests();
     }
   };
@@ -1827,6 +2027,7 @@ export default function FieldTestDashboard() {
   if (!isAuthenticated) {
     return (
       <LoginScreen 
+        showNotification={showNotification}
         onLogin={(user) => {
           setCurrentUser(user);
           setIsAuthenticated(true);
@@ -1885,15 +2086,6 @@ export default function FieldTestDashboard() {
           </div>
 
           <div className="flex items-center gap-3">
-            <button 
-              onClick={exportToExcel}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-600/10 hover:bg-emerald-600 text-emerald-500 hover:text-white text-xs font-bold rounded-xl transition-all border border-emerald-500/20 hover:border-emerald-600 shadow-lg shadow-emerald-900/10"
-              title="Exportar todos os testes para Excel"
-            >
-              <Download size={16} />
-              <span className="hidden sm:inline">EXPORTAR EXCEL</span>
-            </button>
-
             <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2">
               <Calendar size={16} className="text-zinc-500" />
               <input 
@@ -1919,6 +2111,17 @@ export default function FieldTestDashboard() {
                 className="bg-zinc-900 border border-zinc-800 rounded-xl pl-10 pr-4 py-2 text-sm w-full md:w-48 focus:ring-2 focus:ring-sky-500 outline-none transition-all"
               />
             </div>
+
+            {!isDriver && (
+              <button 
+                onClick={handleExport}
+                className="flex items-center gap-2 px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all"
+                title="Exportar Relatório CSV"
+              >
+                <Download size={18} />
+                <span className="hidden md:inline text-xs font-bold uppercase tracking-wider">Exportar</span>
+              </button>
+            )}
 
             {isDriver ? (
               <button 
@@ -1965,7 +2168,7 @@ export default function FieldTestDashboard() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
             {allUsers
-              .filter(u => u.role?.toLowerCase().trim() === 'motorista de teste')
+              .filter(u => u.role?.toLowerCase().trim().includes('motorista'))
               .map(driver => {
                 const isSelf = driver.id === currentUser?.id;
                 const canEdit = isAdminOrConsultant || isSelf;
@@ -2266,45 +2469,61 @@ export default function FieldTestDashboard() {
                             FINALIZAR
                           </button>
                         )}
-                        {currentUser && record.solicitante && (currentUser.firstName + " " + currentUser.lastName).localeCompare(record.solicitante, undefined, { sensitivity: 'base' }) === 0 ? (
-                          <div className="flex items-center gap-2">
-                            <button 
-                              onClick={() => {
-                                if (record.dataInicio !== '-') {
-                                  const password = window.prompt('Este teste já está em andamento ou concluído. Para editá-lo, confirme sua senha:');
-                                  if (password !== currentUser?.password) {
-                                    alert('Senha incorreta. O registro não pode ser editado.');
-                                    return;
-                                  }
-                                }
-                                setEditingTest(record);
-                              }}
-                              className="px-3 py-1.5 bg-amber-600/10 hover:bg-amber-600 text-amber-500 hover:text-white text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center gap-2 border border-amber-500/20 hover:border-amber-600"
-                            >
-                              <Edit size={12} />
-                              EDITAR
-                            </button>
-                            <button 
-                              onClick={() => handleDeleteRecord(record.id)}
-                              className="px-3 py-1.5 bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center gap-2 border border-red-500/20 hover:border-red-600"
-                              title="Apagar meu teste"
-                            >
-                              <Trash2 size={12} />
-                              APAGAR
-                            </button>
-                          </div>
-                        ) : !isDriver && currentUser && record.solicitante && (currentUser.firstName + " " + currentUser.lastName).localeCompare(record.solicitante, undefined, { sensitivity: 'base' }) !== 0 ? (
-                          <button 
-                            onClick={() => handleDeleteRecord(record.id)}
-                            className="px-3 py-1.5 bg-zinc-800 hover:bg-red-600 text-zinc-500 hover:text-white text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center gap-2 border border-zinc-700 hover:border-red-600"
-                            title="Apagar este teste (mesmo não sendo seu)"
-                          >
-                            <Trash2 size={12} />
-                            APAGAR
-                          </button>
-                        ) : (
-                          null
-                        )}
+                        {(() => {
+                          const normalize = (s: string) => s?.trim().toLowerCase().replace(/\s+/g, ' ') || "";
+                          const userFullName = (currentUser?.firstName || "") + " " + (currentUser?.lastName || "");
+                          const isOwner = currentUser && record.solicitante && (
+                            normalize(userFullName) === normalize(record.solicitante) ||
+                            normalize(currentUser.username) === normalize(record.solicitante)
+                          );
+                          const canEdit = isOwner || isAdminOrConsultant;
+                          const canDelete = isOwner || isAdminOrConsultant;
+
+                          if (!canEdit && !canDelete) return null;
+
+                          return (
+                            <div className="flex items-center gap-2">
+                              {canEdit && (
+                                <button 
+                                  onClick={() => {
+                                    const isConcluido = record.dataFim !== '-';
+                                    if (isConcluido) {
+                                      showNotification('Não é autorizado editar testes concluídos.', 'error');
+                                      return;
+                                    }
+
+                                    setPasswordModal({
+                                      isOpen: true,
+                                      title: 'Confirmar Edição',
+                                      onConfirm: () => {
+                                        setEditingTest(record);
+                                      }
+                                    });
+                                  }}
+                                  className="px-3 py-1.5 bg-amber-600/10 hover:bg-amber-600 text-amber-500 hover:text-white text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center gap-2 border border-amber-500/20 hover:border-amber-600"
+                                >
+                                  <Edit size={12} />
+                                  EDITAR
+                                </button>
+                              )}
+                              {canDelete && (
+                                <button 
+                                  onClick={() => handleDeleteRecord(record.id)}
+                                  className={cn(
+                                    "px-3 py-1.5 text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center gap-2 border",
+                                    isOwner 
+                                      ? "bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white border-red-500/20 hover:border-red-600"
+                                      : "bg-zinc-800 hover:bg-red-600 text-zinc-500 hover:text-white border-zinc-700 hover:border-red-600"
+                                  )}
+                                  title={isOwner ? "Apagar meu teste" : "Apagar este teste (mesmo não sendo seu)"}
+                                >
+                                  <Trash2 size={12} />
+                                  APAGAR
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                     </td>
                   </tr>
@@ -2335,6 +2554,7 @@ export default function FieldTestDashboard() {
             key={editingTest?.id || 'new'}
             currentUser={currentUser}
             drivers={dynamicDrivers}
+            showNotification={showNotification}
             onClose={() => {
               setIsFormOpen(false);
               setEditingTest(null);
@@ -2353,10 +2573,29 @@ export default function FieldTestDashboard() {
         {finishingTest && (
           <DriverFinishForm 
             test={finishingTest}
+            showNotification={showNotification}
             onClose={() => setFinishingTest(null)}
             onSubmit={(data) => handleFinishTest(finishingTest.id, data)}
           />
         )}
+
+        <PasswordConfirmModal 
+          isOpen={passwordModal.isOpen}
+          title={passwordModal.title}
+          currentUser={currentUser}
+          onClose={() => setPasswordModal(prev => ({ ...prev, isOpen: false }))}
+          onConfirm={passwordModal.onConfirm}
+        />
+
+        <AnimatePresence>
+          {notification && (
+            <Notification 
+              message={notification.message}
+              type={notification.type}
+              onClose={() => setNotification(null)}
+            />
+          )}
+        </AnimatePresence>
       </AnimatePresence>
 
       {/* Backup Recovery Alert */}

@@ -14,6 +14,10 @@ const DATA_DIR = path.join(process.cwd(), 'data');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const TESTS_FILE = path.join(DATA_DIR, 'tests.json');
 
+console.log('Storage: Using DATA_DIR:', DATA_DIR);
+console.log('Storage: Using USERS_FILE:', USERS_FILE);
+console.log('Storage: Using TESTS_FILE:', TESTS_FILE);
+
 let memoryUsers: any[] | null = null;
 let memoryTests: any[] | null = null;
 
@@ -28,28 +32,28 @@ const DEFAULT_ADMIN = {
 };
 
 // Ensure data directory exists
-if (!supabase) {
-  try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-  } catch (err) {
-    console.error('Data directory creation failed:', err);
+try {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    console.log('Data directory created:', DATA_DIR);
   }
+} catch (err) {
+  console.error('Data directory creation failed:', err);
 }
 
 export async function getUsers() {
   if (supabase) {
-    const { data, error } = await supabase.from('users').select('*');
-    if (error) {
-      console.error('Supabase getUsers error:', error);
-      return memoryUsers || [DEFAULT_ADMIN];
+    try {
+      const { data, error } = await supabase.from('users').select('*');
+      if (error) {
+        console.error('Supabase getUsers error:', error);
+        // Fallback to local if Supabase fails
+      } else if (data && data.length > 0) {
+        return data;
+      }
+    } catch (err) {
+      console.error('Supabase getUsers exception:', err);
     }
-    if (!data || data.length === 0) {
-      // If no users, return default admin but don't save yet
-      return [DEFAULT_ADMIN];
-    }
-    return data;
   }
 
   if (memoryUsers) return memoryUsers;
@@ -75,16 +79,33 @@ export async function saveUsers(users: any[]) {
     id: user.id || randomUUID()
   }));
 
+  let supabaseSuccess = false;
+
   if (supabase) {
-    console.log('Tentando salvar usuários no Supabase:', usersWithIds.length);
-    const { error } = await supabase.from('users').upsert(usersWithIds, { onConflict: 'username' });
-    if (error) {
-      console.error('Erro crítico no Supabase saveUsers:', error.message, error.details);
-      throw new Error(`Erro ao salvar usuários no Supabase: ${error.message}`);
-    } else {
-      console.log('Usuários salvos com sucesso no Supabase');
+    try {
+      console.log('Tentando salvar usuários no Supabase:', usersWithIds.length);
+      const { error } = await supabase.from('users').upsert(usersWithIds, { onConflict: 'username' });
+      if (error) {
+        console.error('Erro no Supabase saveUsers:', error.message, error.details);
+        // Se o erro for de coluna ausente, tentamos salvar sem a coluna lastPresenceUpdate
+        if (error.message.includes('lastPresenceUpdate') || error.message.includes('column')) {
+          console.log('Tentando salvar sem a coluna lastPresenceUpdate...');
+          const usersWithoutPresence = usersWithIds.map(({ lastPresenceUpdate, presenceStatus, ...u }) => u);
+          const { error: retryError } = await supabase.from('users').upsert(usersWithoutPresence, { onConflict: 'username' });
+          if (!retryError) {
+            supabaseSuccess = true;
+            console.log('Usuários salvos com sucesso no Supabase (sem colunas de presença)');
+          } else {
+            console.error('Erro na segunda tentativa Supabase saveUsers:', retryError.message);
+          }
+        }
+      } else {
+        console.log('Usuários salvos com sucesso no Supabase');
+        supabaseSuccess = true;
+      }
+    } catch (err: any) {
+      console.error('Exceção no Supabase saveUsers:', err.message);
     }
-    return;
   }
 
   memoryUsers = usersWithIds;
@@ -92,6 +113,7 @@ export async function saveUsers(users: any[]) {
     fs.writeFileSync(USERS_FILE, JSON.stringify(usersWithIds, null, 2));
   } catch (error) {
     console.error('File write failed:', error);
+    if (!supabaseSuccess) throw error;
   }
 }
 
@@ -162,19 +184,36 @@ export async function saveTests(data: any | any[]) {
     id: test.id || randomUUID()
   }));
 
+  let supabaseSuccess = false;
+
   if (supabase) {
-    console.log(`Tentando salvar ${testsWithIds.length} teste(s) no Supabase`);
-    const { error } = await supabase.from('tests').upsert(testsWithIds, { onConflict: 'id' });
-    if (error) {
-      console.error('Erro crítico no Supabase saveTests:', error.message, error.details);
-      throw new Error(`Erro ao salvar no Supabase: ${error.message}`);
-    } else {
-      console.log('Dados salvos com sucesso no Supabase');
+    try {
+      console.log(`Tentando salvar ${testsWithIds.length} teste(s) no Supabase`);
+      const { error } = await supabase.from('tests').upsert(testsWithIds, { onConflict: 'id' });
+      if (error) {
+        console.error('Erro no Supabase saveTests:', error.message, error.details);
+        // Se o erro for de coluna ausente, tentamos salvar sem a coluna updatedAt
+        if (error.message.includes('updatedAt') || error.message.includes('column')) {
+          console.log('Tentando salvar sem a coluna updatedAt...');
+          const testsWithoutUpdate = testsWithIds.map(({ updatedAt, ...t }) => t);
+          const { error: retryError } = await supabase.from('tests').upsert(testsWithoutUpdate, { onConflict: 'id' });
+          if (!retryError) {
+            supabaseSuccess = true;
+            console.log('Dados salvos com sucesso no Supabase (sem coluna updatedAt)');
+          } else {
+            console.error('Erro na segunda tentativa Supabase saveTests:', retryError.message);
+          }
+        }
+      } else {
+        console.log('Dados salvos com sucesso no Supabase');
+        supabaseSuccess = true;
+      }
+    } catch (err: any) {
+      console.error('Exceção no Supabase saveTests:', err.message);
     }
-    return isArray ? testsWithIds : testsWithIds[0];
   }
 
-  // Local fallback logic
+  // Local fallback logic - Always update local memory/file as well
   if (!memoryTests) {
     await getTests(); // Load existing tests into memory if not already there
   }
@@ -195,7 +234,8 @@ export async function saveTests(data: any | any[]) {
     fs.writeFileSync(TESTS_FILE, JSON.stringify(memoryTests, null, 2));
   } catch (error) {
     console.error('File write failed:', error);
-    throw error;
+    // Only throw if both failed
+    if (!supabaseSuccess) throw error;
   }
 
   return isArray ? testsWithIds : testsWithIds[0];
