@@ -1417,13 +1417,18 @@ export default function FieldTestDashboard() {
                               currentUser?.username?.toLowerCase() === 'admin';
 
   const handleUpdatePriority = (id: string, newPriority: number) => {
+    const record = records.find(r => r.id === id);
+    if (!record) return;
+
+    if (record.dataInicio !== '-' || record.dataFim !== '-') {
+      showNotification('Não é possível alterar a ordem de um teste que já iniciou ou foi finalizado.', 'error');
+      return;
+    }
+
     setRecords(prev => prev.map(r => r.id === id ? { ...r, priority: newPriority, updatedAt: new Date().toISOString() } : r));
     
     // Sync to backend
-    const record = records.find(r => r.id === id);
-    if (record) {
-      saveToBackend({ ...record, priority: newPriority, updatedAt: new Date().toISOString() });
-    }
+    saveToBackend({ ...record, priority: newPriority, updatedAt: new Date().toISOString() });
     
     showNotification('Ordem do teste alterada com sucesso!', 'success');
   };
@@ -2636,8 +2641,8 @@ export default function FieldTestDashboard() {
                                     EDITAR
                                   </button>
 
-                                  {/* Priority Buttons */}
-                                  {record.dataFim === '-' && (
+                                  {/* Priority Buttons - Only for tests waiting to be performed */}
+                                  {record.dataInicio === '-' && record.dataFim === '-' && (
                                     <div className="flex gap-1">
                                       <button 
                                         onClick={() => {
