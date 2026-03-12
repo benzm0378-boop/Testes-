@@ -23,22 +23,28 @@ export async function POST(request: Request) {
 
     // Otherwise, it's a single user update or creation
     const userData = data;
+    console.log('API: Recebido userData para salvar:', userData.username);
+    
     if (!userData || !userData.username) {
+      console.error('API: Dados de usuário inválidos:', userData);
       return NextResponse.json({ error: 'Invalid user data' }, { status: 400 });
     }
     
     const users = await getUsers();
+    console.log('API: Usuários existentes carregados:', users.length);
+    
     const existingIndex = users.findIndex((u: any) => u.username.toLowerCase().trim() === userData.username.toLowerCase().trim());
     
     if (existingIndex !== -1) {
-      // Update existing user
+      console.log('API: Atualizando usuário existente:', userData.username);
       users[existingIndex] = { ...users[existingIndex], ...userData };
     } else {
-      // Create new user
+      console.log('API: Criando novo usuário:', userData.username);
       users.push(userData);
     }
     
     await saveUsers(users);
+    console.log('API: Usuários salvos com sucesso');
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('API Users POST Error:', error);

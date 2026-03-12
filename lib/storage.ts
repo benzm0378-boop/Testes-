@@ -12,9 +12,13 @@ const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supaba
 // Local Persistence (Fallback)
 let DATA_DIR = path.join(process.cwd(), 'data');
 
+console.log('Storage: Initial DATA_DIR:', DATA_DIR);
+console.log('Storage: process.cwd():', process.cwd());
+
 // Ensure data directory exists and is writable
 try {
   if (!fs.existsSync(DATA_DIR)) {
+    console.log('Storage: Creating DATA_DIR:', DATA_DIR);
     fs.mkdirSync(DATA_DIR, { recursive: true });
   }
   // Test writability
@@ -27,6 +31,7 @@ try {
   DATA_DIR = path.join('/tmp', 'data');
   try {
     if (!fs.existsSync(DATA_DIR)) {
+      console.log('Storage: Creating fallback DATA_DIR:', DATA_DIR);
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
     console.log('Storage: Using fallback DATA_DIR:', DATA_DIR);
@@ -52,16 +57,19 @@ const DEFAULT_ADMIN = {
 };
 
 export async function getUsers() {
+  console.log('Storage: getUsers() called');
   if (supabase) {
     try {
+      console.log('Storage: Fetching users from Supabase...');
       const { data, error } = await supabase.from('users').select('*');
       if (error) {
         console.error('Supabase getUsers error:', error);
       } else if (data && data.length > 0) {
-        console.log('Users loaded from Supabase:', data.length);
+        console.log('Storage: Users loaded from Supabase:', data.length);
+        memoryUsers = data;
         return data;
       } else {
-        console.log('Supabase returned no users, falling back to local storage');
+        console.log('Storage: Supabase returned no users, falling back to local storage');
       }
     } catch (err) {
       console.error('Supabase getUsers exception:', err);
@@ -69,29 +77,31 @@ export async function getUsers() {
   }
 
   if (memoryUsers) {
-    console.log('Returning users from memory:', memoryUsers.length);
+    console.log('Storage: Returning users from memory:', memoryUsers.length);
     return memoryUsers;
   }
 
   try {
+    console.log('Storage: Checking USERS_FILE:', USERS_FILE);
     if (fs.existsSync(USERS_FILE)) {
       const data = fs.readFileSync(USERS_FILE, 'utf8');
       memoryUsers = JSON.parse(data);
-      console.log('Users loaded from file:', USERS_FILE, memoryUsers?.length);
+      console.log('Storage: Users loaded from file:', USERS_FILE, memoryUsers?.length);
       return memoryUsers || [DEFAULT_ADMIN];
     } else {
-      console.log('Users file not found:', USERS_FILE);
+      console.log('Storage: Users file not found:', USERS_FILE);
     }
   } catch (error) {
-    console.error('File read failed:', error);
+    console.error('Storage: File read failed:', error);
   }
 
-  console.log('Returning default admin');
+  console.log('Storage: Returning default admin');
   memoryUsers = [DEFAULT_ADMIN];
   return memoryUsers;
 }
 
 export async function saveUsers(users: any[]) {
+  console.log('Storage: saveUsers() called with', users.length, 'users');
   // Ensure all users have an ID
   const usersWithIds = users.map(user => ({
     ...user,
@@ -102,36 +112,38 @@ export async function saveUsers(users: any[]) {
 
   if (supabase) {
     try {
-      console.log('Tentando salvar usuários no Supabase:', usersWithIds.length);
+      console.log('Storage: Tentando salvar usuários no Supabase:', usersWithIds.length);
       const { error } = await supabase.from('users').upsert(usersWithIds, { onConflict: 'username' });
       if (error) {
-        console.error('Erro no Supabase saveUsers:', error.message, error.details);
+        console.error('Storage: Erro no Supabase saveUsers:', error.message, error.details);
         // Se o erro for de coluna ausente, tentamos salvar sem a coluna lastPresenceUpdate
         if (error.message.includes('lastPresenceUpdate') || error.message.includes('column')) {
-          console.log('Tentando salvar sem a coluna lastPresenceUpdate...');
+          console.log('Storage: Tentando salvar sem a coluna lastPresenceUpdate...');
           const usersWithoutPresence = usersWithIds.map(({ lastPresenceUpdate, presenceStatus, ...u }) => u);
           const { error: retryError } = await supabase.from('users').upsert(usersWithoutPresence, { onConflict: 'username' });
           if (!retryError) {
             supabaseSuccess = true;
-            console.log('Usuários salvos com sucesso no Supabase (sem colunas de presença)');
+            console.log('Storage: Usuários salvos com sucesso no Supabase (sem colunas de presença)');
           } else {
-            console.error('Erro na segunda tentativa Supabase saveUsers:', retryError.message);
+            console.error('Storage: Erro na segunda tentativa Supabase saveUsers:', retryError.message);
           }
         }
       } else {
-        console.log('Usuários salvos com sucesso no Supabase');
+        console.log('Storage: Usuários salvos com sucesso no Supabase');
         supabaseSuccess = true;
       }
     } catch (err: any) {
-      console.error('Exceção no Supabase saveUsers:', err.message);
+      console.error('Storage: Exceção no Supabase saveUsers:', err.message);
     }
   }
 
   memoryUsers = usersWithIds;
   try {
+    console.log('Storage: Writing to USERS_FILE:', USERS_FILE);
     fs.writeFileSync(USERS_FILE, JSON.stringify(usersWithIds, null, 2));
+    console.log('Storage: Successfully wrote to USERS_FILE');
   } catch (error) {
-    console.error('File write failed:', error);
+    console.error('Storage: File write failed:', error);
     if (!supabaseSuccess) throw error;
   }
 }

@@ -145,8 +145,19 @@ const LoginScreen = ({ onLogin, showNotification }: {
 
     try {
       const cleanUsername = username.trim();
+      console.log('Tentativa de login para:', cleanUsername);
+      
       const users = await fetchUsers();
-      console.log('Login attempt for:', cleanUsername, 'Total users:', users.length);
+      console.log('Usuários carregados para login:', users?.length || 0);
+      
+      if (!Array.isArray(users)) {
+        console.error('Erro: users não é um array', users);
+        setError('Erro ao carregar dados de usuários.');
+        return;
+      }
+
+      // Log usernames for debugging (only in dev/debug)
+      console.log('Usernames no sistema:', users.map((u: any) => u.username).join(', '));
 
       if (mode === 'signup') {
         if (password !== confirmPassword) {
@@ -174,11 +185,13 @@ const LoginScreen = ({ onLogin, showNotification }: {
         });
         
         if (result.error) {
+          console.error('Erro no cadastro:', result.error);
           setError(result.error);
         } else {
+          console.log('Cadastro realizado com sucesso para:', cleanUsername);
           setMode('login');
           setError('');
-          showNotification('Cadastro realizado com sucesso! Faça login para continuar.', 'success');
+          showNotification(`Cadastro realizado com sucesso para o usuário "${cleanUsername}"! Faça login para continuar.`, 'success');
         }
       } else {
         // Allow login by username OR registration (matrícula)
@@ -1560,9 +1573,11 @@ export default function FieldTestDashboard() {
 
   const fetchAllUsers = useCallback(async () => {
     try {
-      const res = await fetch('/api/users');
+      console.log('Buscando todos os usuários...');
+      const res = await fetch('/api/users', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
+        console.log('Usuários recebidos do servidor:', data?.length || 0);
         
         // Merge current user's local state if it's more recent than server data
         const mergedData = data.map((u: any) => {
