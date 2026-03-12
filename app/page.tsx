@@ -108,7 +108,7 @@ const LoginScreen = ({ onLogin, showNotification }: {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch('/api/users');
+      const response = await fetch('/api/users', { cache: 'no-store' });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
@@ -144,6 +144,7 @@ const LoginScreen = ({ onLogin, showNotification }: {
     setIsLoading(true);
 
     try {
+      const cleanUsername = username.trim();
       const users = await fetchUsers();
 
       if (mode === 'signup') {
@@ -153,17 +154,17 @@ const LoginScreen = ({ onLogin, showNotification }: {
           return;
         }
 
-        if (users.find((u: any) => u.username.toLowerCase().trim() === username.toLowerCase().trim())) {
+        if (users.find((u: any) => u.username.toLowerCase().trim() === cleanUsername.toLowerCase())) {
           setError('Este usuário já existe');
           setIsLoading(false);
           return;
         }
 
         const result = await saveUser({ 
-          firstName, 
-          lastName, 
-          username, 
-          role, 
+          firstName: firstName.trim(), 
+          lastName: lastName.trim(), 
+          username: cleanUsername, 
+          role: role.trim(), 
           registration: password, 
           password,
           isActive: true,
@@ -180,7 +181,7 @@ const LoginScreen = ({ onLogin, showNotification }: {
         }
       } else {
         const user = users.find((u: any) => 
-          u.username.toLowerCase().trim() === username.toLowerCase().trim() && 
+          u.username.toLowerCase().trim() === cleanUsername.toLowerCase() && 
           u.password === password
         );
         if (user) {
