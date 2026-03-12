@@ -1174,8 +1174,10 @@ const PasswordConfirmModal = ({
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   if (password === currentUser?.password) {
-                    onConfirm();
                     onClose();
+                    setTimeout(() => {
+                      onConfirm();
+                    }, 100);
                   } else {
                     setError(true);
                   }
@@ -1200,8 +1202,10 @@ const PasswordConfirmModal = ({
             <button 
               onClick={() => {
                 if (password === currentUser?.password) {
-                  onConfirm();
                   onClose();
+                  setTimeout(() => {
+                    onConfirm();
+                  }, 100);
                 } else {
                   setError(true);
                 }
@@ -1246,8 +1250,10 @@ const PriorityConsentModal = ({
       return;
     }
     if (password === solicitanteUser.password) {
-      onConfirm();
       onClose();
+      setTimeout(() => {
+        onConfirm();
+      }, 100);
     } else {
       setError('Senha incorreta do solicitante.');
     }
@@ -2788,25 +2794,29 @@ export default function FieldTestDashboard() {
           />
         )}
 
-        <PasswordConfirmModal 
-          isOpen={passwordModal.isOpen}
-          title={passwordModal.title}
-          currentUser={currentUser}
-          onClose={() => setPasswordModal(prev => ({ ...prev, isOpen: false }))}
-          onConfirm={passwordModal.onConfirm}
-        />
+        {passwordModal.isOpen && (
+          <PasswordConfirmModal 
+            isOpen={passwordModal.isOpen}
+            title={passwordModal.title}
+            currentUser={currentUser}
+            onClose={() => setPasswordModal(prev => ({ ...prev, isOpen: false }))}
+            onConfirm={passwordModal.onConfirm}
+          />
+        )}
 
-        <PriorityConsentModal 
-          isOpen={priorityModal.isOpen}
-          solicitanteName={priorityModal.record?.solicitante || ''}
-          allUsers={allUsers}
-          onClose={() => setPriorityModal(prev => ({ ...prev, isOpen: false }))}
-          onConfirm={() => {
-            if (priorityModal.record) {
-              handleUpdatePriority(priorityModal.record.id, priorityModal.newPriority);
-            }
-          }}
-        />
+        {priorityModal.isOpen && (
+          <PriorityConsentModal 
+            isOpen={priorityModal.isOpen}
+            solicitanteName={priorityModal.record?.solicitante || ''}
+            allUsers={allUsers}
+            onClose={() => setPriorityModal(prev => ({ ...prev, isOpen: false }))}
+            onConfirm={() => {
+              if (priorityModal.record) {
+                handleUpdatePriority(priorityModal.record.id, priorityModal.newPriority);
+              }
+            }}
+          />
+        )}
 
         <AnimatePresence>
           {notification && (
