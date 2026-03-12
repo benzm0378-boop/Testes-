@@ -2139,22 +2139,43 @@ export default function FieldTestDashboard() {
       return nextTest ? [nextTest] : [];
     }
     
-    // Sort by priority (desc) then date (asc for queue, desc for history)
+    // Sort by status (Finalized > In Progress > Waiting), then sub-sort
     return [...filteredRecords].sort((a, b) => {
-      // Priority first
+      // Status priority
+      const getStatusRank = (r: TestRecord) => {
+        if (r.dataFim !== '-') return 3; // Finalized
+        if (r.dataInicio !== '-') return 2; // In progress
+        return 1; // Waiting
+      };
+
+      const rankA = getStatusRank(a);
+      const rankB = getStatusRank(b);
+
+      if (rankB !== rankA) return rankB - rankA;
+
+      // If same status, apply sub-sorting
+      if (rankA === 3) {
+        // Finalized: Most recent first (LIFO)
+        const dateA = (a.dataFim || '0000-00-00') + (a.horaFim || '00:00');
+        const dateB = (b.dataFim || '0000-00-00') + (b.horaFim || '00:00');
+        return dateB.localeCompare(dateA);
+      }
+
+      if (rankA === 2) {
+        // In progress: Most recent start first
+        const dateA = (a.dataInicio || '0000-00-00') + (a.horaInicio || '00:00');
+        const dateB = (b.dataInicio || '0000-00-00') + (b.horaInicio || '00:00');
+        return dateB.localeCompare(dateA);
+      }
+
+      // Waiting: Priority first, then oldest first (FIFO)
       const prioA = a.priority || 0;
       const prioB = b.priority || 0;
       if (prioB !== prioA) return prioB - prioA;
 
-      const dateA = a.dataSolicitacao || '0000-00-00';
-      const dateB = b.dataSolicitacao || '0000-00-00';
-      
-      if (isDriver && !showHistory) {
-        // FIFO for queue
-        return dateA.localeCompare(dateB);
-      }
-      // LIFO for history
-      return dateB.localeCompare(dateA);
+      const dateA = (a.dataSolicitacao || '0000-00-00') + (a.horaSolicitacao || '00:00');
+      const dateB = (b.dataSolicitacao || '0000-00-00') + (b.horaSolicitacao || '00:00');
+      return dateA.localeCompare(dateB);
     });
   })();
 
