@@ -10,13 +10,33 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUP
 const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : null;
 
 // Local Persistence (Fallback)
-const DATA_DIR = path.join(process.cwd(), 'data');
+let DATA_DIR = path.join(process.cwd(), 'data');
+
+// Ensure data directory exists and is writable
+try {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+  // Test writability
+  const testFile = path.join(DATA_DIR, '.write-test');
+  fs.writeFileSync(testFile, '');
+  fs.unlinkSync(testFile);
+  console.log('Storage: Primary DATA_DIR is writable:', DATA_DIR);
+} catch (err) {
+  console.warn('Storage: Primary DATA_DIR not writable, falling back to /tmp/data:', err);
+  DATA_DIR = path.join('/tmp', 'data');
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    console.log('Storage: Using fallback DATA_DIR:', DATA_DIR);
+  } catch (fallbackErr) {
+    console.error('Storage: Fallback DATA_DIR creation failed:', fallbackErr);
+  }
+}
+
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const TESTS_FILE = path.join(DATA_DIR, 'tests.json');
-
-console.log('Storage: Using DATA_DIR:', DATA_DIR);
-console.log('Storage: Using USERS_FILE:', USERS_FILE);
-console.log('Storage: Using TESTS_FILE:', TESTS_FILE);
 
 let memoryUsers: any[] | null = null;
 let memoryTests: any[] | null = null;
@@ -30,16 +50,6 @@ const DEFAULT_ADMIN = {
   registration: 'admin123',
   password: 'admin123'
 };
-
-// Ensure data directory exists
-try {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-    console.log('Data directory created:', DATA_DIR);
-  }
-} catch (err) {
-  console.error('Data directory creation failed:', err);
-}
 
 export async function getUsers() {
   if (supabase) {

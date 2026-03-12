@@ -206,19 +206,19 @@ const LoginScreen = ({ onLogin, showNotification }: {
   };
 
   return (
-    <div className="fixed inset-0 bg-zinc-950 flex items-center justify-center p-4 z-50 overflow-y-auto">
+    <div className="fixed inset-0 bg-zinc-950 flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto">
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="max-w-md w-full bg-zinc-900 border border-zinc-800 p-8 rounded-2xl shadow-2xl my-8"
+        className="max-w-md w-full bg-zinc-900 border border-zinc-800 p-5 sm:p-8 rounded-2xl shadow-2xl my-auto"
       >
-        <div className="w-24 h-24 bg-black rounded-full flex items-center justify-center mx-auto mb-6 shadow-[0_0_40px_rgba(255,255,255,0.05)] border border-zinc-800 p-3 relative group">
+        <div className="w-16 h-16 sm:w-20 sm:h-20 bg-black rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 shadow-[0_0_40px_rgba(255,255,255,0.05)] border border-zinc-800 p-2 sm:p-3 relative group">
           <div className="absolute inset-0 bg-gradient-to-b from-zinc-800/20 to-transparent rounded-full opacity-50" />
           <Image 
             src="https://www.carlogos.org/car-logos/mercedes-benz-logo.png"
             alt="Mercedes-Benz Star"
-            width={80}
-            height={80}
+            width={60}
+            height={60}
             className="object-contain relative z-10 drop-shadow-[0_0_12px_rgba(255,255,255,0.3)]"
             unoptimized
             priority
@@ -226,11 +226,11 @@ const LoginScreen = ({ onLogin, showNotification }: {
           />
         </div>
 
-        <div className="text-center mb-8">
-          <h2 className="text-2xl font-bold text-white mb-2">
+        <div className="text-center mb-4 sm:mb-8">
+          <h2 className="text-xl sm:text-2xl font-bold text-white mb-1 sm:mb-2">
             {mode === 'login' ? 'Acesso ao Sistema' : 'Criar Conta'}
           </h2>
-          <p className="text-zinc-500 text-sm">
+          <p className="text-zinc-500 text-xs sm:text-sm">
             {mode === 'login' 
               ? 'Entre com suas credenciais para continuar' 
               : 'Preencha os dados abaixo para se cadastrar'}
@@ -248,10 +248,10 @@ const LoginScreen = ({ onLogin, showNotification }: {
           </motion.div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
           {mode === 'signup' && (
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+              <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider ml-1">Nome</label>
                 <input 
                   type="text"
@@ -259,10 +259,10 @@ const LoginScreen = ({ onLogin, showNotification }: {
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                   placeholder="Nome"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all placeholder:text-zinc-700 text-sm"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all placeholder:text-zinc-700 text-sm"
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider ml-1">Sobrenome</label>
                 <input 
                   type="text"
@@ -270,42 +270,42 @@ const LoginScreen = ({ onLogin, showNotification }: {
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   placeholder="Sobrenome"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all placeholder:text-zinc-700 text-sm"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all placeholder:text-zinc-700 text-sm"
                 />
               </div>
             </div>
           )}
 
           {mode === 'signup' ? (
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+              <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider ml-1">Usuário</label>
                 <div className="relative group">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-sky-500 transition-colors" size={18} />
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-sky-500 transition-colors" size={16} />
                   <input 
                     type="text"
                     required
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="Digite seu usuário"
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all placeholder:text-zinc-700 text-sm [&:-webkit-autofill]:shadow-[0_0_0_1000px_#09090b_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
+                    placeholder="Usuário"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-9 pr-3 sm:pl-10 sm:pr-4 py-2.5 sm:py-3 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all placeholder:text-zinc-700 text-sm [&:-webkit-autofill]:shadow-[0_0_0_1000px_#09090b_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
                   />
                 </div>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider ml-1">Função</label>
                 <input 
                   type="text"
                   required
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
-                  placeholder="Ex: Motorista de teste"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all placeholder:text-zinc-700 text-sm [&:-webkit-autofill]:shadow-[0_0_0_1000px_#09090b_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
+                  placeholder="Ex: Motorista"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all placeholder:text-zinc-700 text-sm [&:-webkit-autofill]:shadow-[0_0_0_1000px_#09090b_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
                 />
               </div>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider ml-1">Usuário</label>
               <div className="relative group">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-sky-500 transition-colors" size={18} />
@@ -321,7 +321,7 @@ const LoginScreen = ({ onLogin, showNotification }: {
             </div>
           )}
 
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider ml-1">
               {mode === 'signup' ? 'Senha (Matrícula)' : 'Senha'}
             </label>
@@ -333,7 +333,7 @@ const LoginScreen = ({ onLogin, showNotification }: {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-12 py-3 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all placeholder:text-zinc-700 text-sm [&:-webkit-autofill]:shadow-[0_0_0_1000px_#09090b_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
+                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-12 py-2.5 sm:py-3 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all placeholder:text-zinc-700 text-sm [&:-webkit-autofill]:shadow-[0_0_0_1000px_#09090b_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
               />
               <button 
                 type="button"
@@ -346,7 +346,7 @@ const LoginScreen = ({ onLogin, showNotification }: {
           </div>
 
           {mode === 'signup' && (
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider ml-1">Confirmar Senha (Matrícula)</label>
               <div className="relative group">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-sky-500 transition-colors" size={18} />
@@ -356,7 +356,7 @@ const LoginScreen = ({ onLogin, showNotification }: {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-12 py-3 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all placeholder:text-zinc-700 text-sm [&:-webkit-autofill]:shadow-[0_0_0_1000px_#09090b_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-10 pr-12 py-2.5 sm:py-3 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all placeholder:text-zinc-700 text-sm [&:-webkit-autofill]:shadow-[0_0_0_1000px_#09090b_inset] [&:-webkit-autofill]:[-webkit-text-fill-color:white]"
                 />
               </div>
             </div>
