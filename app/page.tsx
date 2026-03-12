@@ -146,6 +146,7 @@ const LoginScreen = ({ onLogin, showNotification }: {
     try {
       const cleanUsername = username.trim();
       const users = await fetchUsers();
+      console.log('Login attempt for:', cleanUsername, 'Total users:', users.length);
 
       if (mode === 'signup') {
         if (password !== confirmPassword) {
@@ -180,10 +181,13 @@ const LoginScreen = ({ onLogin, showNotification }: {
           showNotification('Cadastro realizado com sucesso! Faça login para continuar.', 'success');
         }
       } else {
+        // Allow login by username OR registration (matrícula)
         const user = users.find((u: any) => 
-          u.username.toLowerCase().trim() === cleanUsername.toLowerCase() && 
+          (u.username.toLowerCase().trim() === cleanUsername.toLowerCase() || 
+           u.registration === cleanUsername) && 
           u.password === password
         );
+        
         if (user) {
           if (user.isActive === false) {
             setError('Este usuário foi desativado. Entre em contato com o administrador.');
@@ -192,10 +196,12 @@ const LoginScreen = ({ onLogin, showNotification }: {
           }
           onLogin(user);
         } else {
+          console.log('Login failed for:', cleanUsername);
           setError('Usuário ou senha incorretos');
         }
       }
     } catch (err: any) {
+      console.error('Login error:', err);
       setError('Erro ao conectar com o servidor. Tente novamente.');
     } finally {
       setIsLoading(false);

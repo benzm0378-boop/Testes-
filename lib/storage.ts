@@ -57,27 +57,36 @@ export async function getUsers() {
       const { data, error } = await supabase.from('users').select('*');
       if (error) {
         console.error('Supabase getUsers error:', error);
-        // Fallback to local if Supabase fails
       } else if (data && data.length > 0) {
+        console.log('Users loaded from Supabase:', data.length);
         return data;
+      } else {
+        console.log('Supabase returned no users, falling back to local storage');
       }
     } catch (err) {
       console.error('Supabase getUsers exception:', err);
     }
   }
 
-  if (memoryUsers) return memoryUsers;
+  if (memoryUsers) {
+    console.log('Returning users from memory:', memoryUsers.length);
+    return memoryUsers;
+  }
 
   try {
     if (fs.existsSync(USERS_FILE)) {
       const data = fs.readFileSync(USERS_FILE, 'utf8');
       memoryUsers = JSON.parse(data);
+      console.log('Users loaded from file:', USERS_FILE, memoryUsers?.length);
       return memoryUsers || [DEFAULT_ADMIN];
+    } else {
+      console.log('Users file not found:', USERS_FILE);
     }
   } catch (error) {
     console.error('File read failed:', error);
   }
 
+  console.log('Returning default admin');
   memoryUsers = [DEFAULT_ADMIN];
   return memoryUsers;
 }
