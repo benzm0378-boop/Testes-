@@ -27,7 +27,10 @@ import {
   Edit,
   Trash2,
   Download,
-  Database
+  Database,
+  ShieldAlert,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -78,6 +81,7 @@ interface TestRecord {
   testeEngatado: 'Sim' | 'Não';
   isDeleted?: boolean;
   updatedAt?: string;
+  priority?: number;
 }
 
 // --- Mock Data ---
@@ -756,8 +760,8 @@ const TestForm = ({ onClose, onSubmit, initialData, currentUser, drivers, showNo
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all"
                 >
                   <option value="" disabled>Selecione um motorista</option>
-                  {drivers.map(name => (
-                    <option key={name} value={name}>{name}</option>
+                  {drivers.map((name, i) => (
+                    <option key={`${name}-${i}`} value={name}>{name}</option>
                   ))}
                 </select>
               </div>
@@ -1213,6 +1217,101 @@ const PasswordConfirmModal = ({
   );
 };
 
+const PriorityConsentModal = ({ 
+  isOpen, 
+  onClose, 
+  onConfirm, 
+  solicitanteName,
+  allUsers
+}: { 
+  isOpen: boolean, 
+  onClose: () => void, 
+  onConfirm: () => void, 
+  solicitanteName: string,
+  allUsers: any[]
+}) => {
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+
+  if (!isOpen) return null;
+
+  const solicitanteUser = allUsers.find(u => {
+    const fullName = `${u.firstName} ${u.lastName}`.trim().toLowerCase();
+    return fullName === solicitanteName.trim().toLowerCase();
+  });
+
+  const handleConfirm = () => {
+    if (!solicitanteUser) {
+      setError('Solicitante não encontrado no sistema.');
+      return;
+    }
+    if (password === solicitanteUser.password) {
+      onConfirm();
+      onClose();
+    } else {
+      setError('Senha incorreta do solicitante.');
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl w-full max-w-sm shadow-2xl"
+      >
+        <div className="flex items-center gap-3 mb-4 text-amber-500">
+          <ShieldAlert size={24} />
+          <h3 className="text-lg font-bold text-white">Consentimento Necessário</h3>
+        </div>
+        
+        <p className="text-zinc-400 text-sm mb-6">
+          Este teste foi solicitado por <span className="text-white font-bold">{solicitanteName}</span>. 
+          Para alterar a ordem, é necessário o consentimento do solicitante. 
+          Por favor, peça ao solicitante para inserir sua senha.
+        </p>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider ml-1">Senha do Solicitante</label>
+            <input 
+              type="password"
+              autoFocus
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setError('');
+              }}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleConfirm(); }}
+              placeholder="Senha de quem solicitou o teste"
+              className={cn(
+                "w-full bg-zinc-950 border rounded-xl px-4 py-3 text-white focus:ring-2 outline-none transition-all placeholder:text-zinc-700 text-sm",
+                error ? "border-red-500 focus:ring-red-500" : "border-zinc-800 focus:ring-sky-500"
+              )}
+            />
+            {error && <p className="text-red-500 text-[10px] font-bold ml-1">{error}</p>}
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button 
+              onClick={onClose}
+              className="flex-1 px-4 py-3 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-xl transition-all active:scale-95"
+            >
+              CANCELAR
+            </button>
+            <button 
+              onClick={handleConfirm}
+              className="flex-1 px-4 py-3 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl transition-all active:scale-95 shadow-lg shadow-sky-900/20"
+            >
+              AUTORIZAR
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
 const PresenceModal = ({ onStatusSelect }: { onStatusSelect: (status: string) => void }) => {
   return (
     <div className="fixed inset-0 bg-zinc-950 flex items-center justify-center p-4 z-[100]">
@@ -1294,6 +1393,11 @@ export default function FieldTestDashboard() {
     title: string;
     onConfirm: () => void;
   }>({ isOpen: false, title: '', onConfirm: () => {} });
+  const [priorityModal, setPriorityModal] = useState<{
+    isOpen: boolean;
+    record: TestRecord | null;
+    newPriority: number;
+  }>({ isOpen: false, record: null, newPriority: 0 });
   const [notification, setNotification] = useState<{
     message: string;
     type: 'success' | 'error' | 'info';
@@ -1311,6 +1415,18 @@ export default function FieldTestDashboard() {
                               currentUser?.role?.toLowerCase().trim().includes('consultor') ||
                               currentUser?.role?.toLowerCase().trim().includes('admin') ||
                               currentUser?.username?.toLowerCase() === 'admin';
+
+  const handleUpdatePriority = (id: string, newPriority: number) => {
+    setRecords(prev => prev.map(r => r.id === id ? { ...r, priority: newPriority, updatedAt: new Date().toISOString() } : r));
+    
+    // Sync to backend
+    const record = records.find(r => r.id === id);
+    if (record) {
+      saveToBackend({ ...record, priority: newPriority, updatedAt: new Date().toISOString() });
+    }
+    
+    showNotification('Ordem do teste alterada com sucesso!', 'success');
+  };
   const driverName = currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : '';
 
   const dynamicDrivers = allUsers
@@ -1465,29 +1581,30 @@ export default function FieldTestDashboard() {
       const data = await response.json();
       if (Array.isArray(data)) {
         setRecords(prev => {
-          const merged = [...prev];
+          // Create a map of existing records by ID to ensure uniqueness
+          const recordMap = new Map();
+          prev.forEach(r => recordMap.set(r.id, r));
+          
           let changed = false;
 
           data.forEach((serverRecord: TestRecord) => {
-            const localIndex = merged.findIndex(r => r.id === serverRecord.id);
-            if (localIndex === -1) {
-              merged.push(serverRecord);
+            const localRecord = recordMap.get(serverRecord.id);
+            if (!localRecord) {
+              recordMap.set(serverRecord.id, serverRecord);
               changed = true;
             } else {
-              const localRecord = merged[localIndex];
               const serverTime = serverRecord.updatedAt ? new Date(serverRecord.updatedAt).getTime() : 0;
               const localTime = localRecord.updatedAt ? new Date(localRecord.updatedAt).getTime() : 0;
 
-              // Use a small buffer (100ms) to avoid clock skew issues
               if (serverTime > localTime + 100) {
-                console.log(`Polling: Updating record ${serverRecord.id} (Server: ${serverTime} > Local: ${localTime})`);
-                merged[localIndex] = serverRecord;
+                recordMap.set(serverRecord.id, serverRecord);
                 changed = true;
               }
             }
           });
 
-          return changed ? merged : prev;
+          if (!changed && recordMap.size === prev.length) return prev;
+          return Array.from(recordMap.values());
         });
       }
     } catch (error) {
@@ -1824,6 +1941,7 @@ export default function FieldTestDashboard() {
       horaFim: newRecord.horaFim || '-',
       kmFim: newRecord.kmFim || 0,
       feedback: newRecord.feedback || 'Aguardando início do teste...',
+      priority: 0,
       updatedAt: now
     };
     
@@ -2016,10 +2134,21 @@ export default function FieldTestDashboard() {
       return nextTest ? [nextTest] : [];
     }
     
-    // Sort by date (most recent first) for history/admin view
+    // Sort by priority (desc) then date (asc for queue, desc for history)
     return [...filteredRecords].sort((a, b) => {
+      // Priority first
+      const prioA = a.priority || 0;
+      const prioB = b.priority || 0;
+      if (prioB !== prioA) return prioB - prioA;
+
       const dateA = a.dataSolicitacao || '0000-00-00';
       const dateB = b.dataSolicitacao || '0000-00-00';
+      
+      if (isDriver && !showHistory) {
+        // FIFO for queue
+        return dateA.localeCompare(dateB);
+      }
+      // LIFO for history
       return dateB.localeCompare(dateA);
     });
   })();
@@ -2331,8 +2460,8 @@ export default function FieldTestDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-800">
-                {displayRecords.map((record) => (
-                  <tr key={record.id} className="hover:bg-zinc-800/30 transition-colors group">
+                {displayRecords.map((record, index) => (
+                  <tr key={`${record.id}-${index}`} className="hover:bg-zinc-800/30 transition-colors group">
                     <td className="px-4 py-4">
                       <span className={cn(
                         "px-2 py-1 rounded text-xs font-bold uppercase whitespace-nowrap",
@@ -2484,27 +2613,81 @@ export default function FieldTestDashboard() {
                           return (
                             <div className="flex items-center gap-2">
                               {canEdit && (
-                                <button 
-                                  onClick={() => {
-                                    const isConcluido = record.dataFim !== '-';
-                                    if (isConcluido) {
-                                      showNotification('Não é autorizado editar testes concluídos.', 'error');
-                                      return;
-                                    }
-
-                                    setPasswordModal({
-                                      isOpen: true,
-                                      title: 'Confirmar Edição',
-                                      onConfirm: () => {
-                                        setEditingTest(record);
+                                <div className="flex flex-col gap-1">
+                                  <button 
+                                    onClick={() => {
+                                      const isConcluido = record.dataFim !== '-';
+                                      if (isConcluido) {
+                                        showNotification('Não é autorizado editar testes concluídos.', 'error');
+                                        return;
                                       }
-                                    });
-                                  }}
-                                  className="px-3 py-1.5 bg-amber-600/10 hover:bg-amber-600 text-amber-500 hover:text-white text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center gap-2 border border-amber-500/20 hover:border-amber-600"
-                                >
-                                  <Edit size={12} />
-                                  EDITAR
-                                </button>
+
+                                      setPasswordModal({
+                                        isOpen: true,
+                                        title: 'Confirmar Edição',
+                                        onConfirm: () => {
+                                          setEditingTest(record);
+                                        }
+                                      });
+                                    }}
+                                    className="px-3 py-1.5 bg-amber-600/10 hover:bg-amber-600 text-amber-500 hover:text-white text-[10px] font-bold rounded-lg transition-all active:scale-95 flex items-center gap-2 border border-amber-500/20 hover:border-amber-600"
+                                  >
+                                    <Edit size={12} />
+                                    EDITAR
+                                  </button>
+
+                                  {/* Priority Buttons */}
+                                  {record.dataFim === '-' && (
+                                    <div className="flex gap-1">
+                                      <button 
+                                        onClick={() => {
+                                          const currentPriority = record.priority || 0;
+                                          const newPriority = currentPriority + 1;
+                                          const userFullName = `${currentUser?.firstName} ${currentUser?.lastName}`.trim().toLowerCase();
+                                          const solicitanteName = record.solicitante.trim().toLowerCase();
+                                          
+                                          if (isAdminOrConsultant || userFullName === solicitanteName) {
+                                            handleUpdatePriority(record.id, newPriority);
+                                          } else {
+                                            setPriorityModal({
+                                              isOpen: true,
+                                              record: record,
+                                              newPriority: newPriority
+                                            });
+                                          }
+                                        }}
+                                        className="flex-1 py-1 bg-sky-600/10 hover:bg-sky-600 text-sky-500 hover:text-white text-[8px] font-bold rounded-lg transition-all border border-sky-500/20 flex items-center justify-center gap-1"
+                                        title="Subir na fila (Aumentar prioridade)"
+                                      >
+                                        <ArrowUp size={10} />
+                                        SUBIR
+                                      </button>
+                                      <button 
+                                        onClick={() => {
+                                          const currentPriority = record.priority || 0;
+                                          const newPriority = Math.max(0, currentPriority - 1);
+                                          const userFullName = `${currentUser?.firstName} ${currentUser?.lastName}`.trim().toLowerCase();
+                                          const solicitanteName = record.solicitante.trim().toLowerCase();
+                                          
+                                          if (isAdminOrConsultant || userFullName === solicitanteName) {
+                                            handleUpdatePriority(record.id, newPriority);
+                                          } else {
+                                            setPriorityModal({
+                                              isOpen: true,
+                                              record: record,
+                                              newPriority: newPriority
+                                            });
+                                          }
+                                        }}
+                                        className="flex-1 py-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-500 hover:text-white text-[8px] font-bold rounded-lg transition-all border border-zinc-700 flex items-center justify-center gap-1"
+                                        title="Descer na fila (Diminuir prioridade)"
+                                      >
+                                        <ArrowDown size={10} />
+                                        DESCER
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
                               )}
                               {canDelete && (
                                 <button 
@@ -2585,6 +2768,18 @@ export default function FieldTestDashboard() {
           currentUser={currentUser}
           onClose={() => setPasswordModal(prev => ({ ...prev, isOpen: false }))}
           onConfirm={passwordModal.onConfirm}
+        />
+
+        <PriorityConsentModal 
+          isOpen={priorityModal.isOpen}
+          solicitanteName={priorityModal.record?.solicitante || ''}
+          allUsers={allUsers}
+          onClose={() => setPriorityModal(prev => ({ ...prev, isOpen: false }))}
+          onConfirm={() => {
+            if (priorityModal.record) {
+              handleUpdatePriority(priorityModal.record.id, priorityModal.newPriority);
+            }
+          }}
         />
 
         <AnimatePresence>
