@@ -59,61 +59,82 @@ const DEFAULT_ADMIN = {
 
 export async function getUsers() {
   console.log('Storage: getUsers() called');
-  let users: any[] = [];
+  let supabaseUsers: any[] = [];
+  let localUsers: any[] = [];
 
+  // 1. Try to get from Supabase
   if (supabase) {
     try {
       console.log('Storage: Fetching users from Supabase...');
       const { data, error } = await supabase.from('users').select('*');
       if (error) {
         console.error('Storage: Supabase getUsers error:', error);
-      } else if (data && data.length > 0) {
+      } else if (Array.isArray(data)) {
         console.log('Storage: Users loaded from Supabase:', data.length);
-        users = data;
-      } else {
-        console.log('Storage: Supabase returned no users');
+        supabaseUsers = data;
       }
     } catch (err) {
       console.error('Storage: Supabase getUsers exception:', err);
     }
   }
 
-  if (users.length === 0) {
-    if (memoryUsers && memoryUsers.length > 0) {
-      console.log('Storage: Returning users from memory:', memoryUsers.length);
-      users = memoryUsers;
-    } else {
-      try {
-        console.log('Storage: Checking USERS_FILE:', USERS_FILE);
-        if (fs.existsSync(USERS_FILE)) {
-          const data = fs.readFileSync(USERS_FILE, 'utf8');
-          const parsed = JSON.parse(data);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            memoryUsers = parsed;
-            users = parsed;
-            console.log('Storage: Users loaded from file:', users.length);
-          }
-        }
-      } catch (error) {
-        console.error('Storage: File read failed:', error);
-      }
-    }
-  }
-
-  // Ensure DEFAULT_ADMIN is always present
-  if (users.length === 0) {
-    console.log('Storage: No users found, using default admin');
-    users = [DEFAULT_ADMIN];
+  // 2. Try to get from memory
+  if (Array.isArray(memoryUsers) && memoryUsers.length > 0) {
+    console.log('Storage: Found users in memory:', memoryUsers.length);
+    localUsers = memoryUsers;
   } else {
-    const hasAdmin = users.some(u => u.username === DEFAULT_ADMIN.username || u.registration === DEFAULT_ADMIN.registration);
-    if (!hasAdmin) {
-      console.log('Storage: Admin not found in list, adding default admin');
-      users.push(DEFAULT_ADMIN);
+    // 3. Try to get from file
+    try {
+      if (fs.existsSync(USERS_FILE)) {
+        const data = fs.readFileSync(USERS_FILE, 'utf8');
+        try {
+          const parsed = JSON.parse(data);
+          if (Array.isArray(parsed)) {
+            localUsers = parsed;
+            console.log('Storage: Users loaded from file:', localUsers.length);
+          }
+        } catch (parseError) {
+          console.error('Storage: Failed to parse users.json:', parseError);
+        }
+      }
+    } catch (error) {
+      console.error('Storage: File read failed:', error);
     }
   }
 
-  memoryUsers = users;
-  return users;
+  // 4. Merge users (prioritize Supabase but keep local-only users)
+  // Use a Map to ensure unique usernames
+  const userMap = new Map();
+
+  // Add local users first
+  localUsers.forEach(u => {
+    if (u && u.username) {
+      userMap.set(u.username.toLowerCase().trim(), u);
+    }
+  });
+
+  // Overwrite/Add with Supabase users (they are the source of truth if available)
+  supabaseUsers.forEach(u => {
+    if (u && u.username) {
+      userMap.set(u.username.toLowerCase().trim(), u);
+    }
+  });
+
+  let mergedUsers = Array.from(userMap.values());
+
+  // 5. Ensure DEFAULT_ADMIN is always present
+  const hasAdmin = mergedUsers.some(u => 
+    u.username?.toLowerCase().trim() === DEFAULT_ADMIN.username.toLowerCase().trim() || 
+    u.registration === DEFAULT_ADMIN.registration
+  );
+
+  if (!hasAdmin) {
+    console.log('Storage: Admin not found in merged list, adding default admin');
+    mergedUsers.push(DEFAULT_ADMIN);
+  }
+
+  memoryUsers = mergedUsers;
+  return mergedUsers;
 }
 
 export async function saveUsers(users: any[]) {
@@ -175,10 +196,12 @@ export async function getTests() {
       const { data, error } = await supabase.from('tests').select('*');
       if (error) {
         console.error('Storage: Supabase getTests error:', error);
-      } else if (data) {
+      } else if (Array.isArray(data)) {
         console.log('Storage: Tests loaded from Supabase:', data.length);
         tests = data;
         memoryTests = data;
+      } else {
+        console.log('Storage: Supabase returned non-array data for tests:', data);
       }
     } catch (err) {
       console.error('Storage: Supabase getTests exception:', err);
@@ -187,7 +210,7 @@ export async function getTests() {
 
   // Fallback to memory or file if Supabase failed or returned nothing
   if (tests.length === 0) {
-    if (memoryTests) {
+    if (Array.isArray(memoryTests)) {
       console.log('Storage: Returning tests from memory:', memoryTests.length);
       tests = memoryTests;
     } else {
@@ -195,9 +218,20 @@ export async function getTests() {
         console.log('Storage: Checking TESTS_FILE:', TESTS_FILE);
         if (fs.existsSync(TESTS_FILE)) {
           const data = fs.readFileSync(TESTS_FILE, 'utf8');
-          memoryTests = JSON.parse(data);
-          tests = memoryTests || [];
-          console.log('Storage: Tests loaded from file:', tests.length);
+          try {
+            const parsed = JSON.parse(data);
+            if (Array.isArray(parsed)) {
+              memoryTests = parsed;
+              tests = parsed;
+              console.log('Storage: Tests loaded from file:', tests.length);
+            } else {
+              console.error('Storage: tests.json is not an array');
+              tests = [];
+            }
+          } catch (parseError) {
+            console.error('Storage: Failed to parse tests.json:', parseError);
+            tests = [];
+          }
         } else {
           console.log('Storage: Tests file not found');
         }
@@ -205,6 +239,12 @@ export async function getTests() {
         console.error('Storage: File read failed:', error);
       }
     }
+  }
+
+  // Ensure tests is an array before mapping
+  if (!Array.isArray(tests)) {
+    console.error('Storage: tests is not an array before rollover logic:', tests);
+    tests = [];
   }
 
   // Rollover logic: move unfinished tests to today if they are from the past

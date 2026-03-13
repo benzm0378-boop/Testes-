@@ -184,22 +184,25 @@ const LoginScreen = ({ onLogin, showNotification }: {
           return;
         }
 
-        if (users.find((u: any) => u.username.toLowerCase().trim() === cleanUsername.toLowerCase())) {
+        const existingUser = users.find((u: any) => u.username.toLowerCase().trim() === cleanUsername.toLowerCase());
+        if (existingUser) {
+          console.log('Tentativa de cadastro com usuário existente:', cleanUsername);
           setError('Este usuário já existe');
           setIsLoading(false);
           return;
         }
 
+        console.log('Iniciando salvamento de novo usuário:', cleanUsername);
         const result = await saveUser({ 
           firstName: firstName.trim(), 
           lastName: lastName.trim(), 
           username: cleanUsername, 
           role: role.trim(), 
-          registration: password, 
+          registration: password, // Usando a senha como matrícula conforme padrão do sistema
           password,
           isActive: true,
           presenceStatus: 'presente',
-          lastPresenceUpdate: null
+          lastPresenceUpdate: new Date().toISOString()
         });
         
         if (result.error) {
@@ -212,14 +215,22 @@ const LoginScreen = ({ onLogin, showNotification }: {
           showNotification(`Cadastro realizado com sucesso para o usuário "${cleanUsername}"! Faça login para continuar.`, 'success');
         }
       } else {
+        console.log('Processando tentativa de login para:', cleanUsername);
         // Allow login by username OR registration (matrícula)
-        const user = users.find((u: any) => 
-          (u.username.toLowerCase().trim() === cleanUsername.toLowerCase() || 
-           u.registration === cleanUsername) && 
-          u.password === password
-        );
+        const user = users.find((u: any) => {
+          const matchUsername = u.username?.toLowerCase().trim() === cleanUsername.toLowerCase();
+          const matchRegistration = u.registration === cleanUsername;
+          const matchPassword = u.password === password;
+          
+          if ((matchUsername || matchRegistration) && !matchPassword) {
+            console.log(`Usuário encontrado (${u.username}), mas senha incorreta.`);
+          }
+          
+          return (matchUsername || matchRegistration) && matchPassword;
+        });
         
         if (user) {
+          console.log('Login bem-sucedido para:', user.username);
           if (user.isActive === false) {
             setError('Este usuário foi desativado. Entre em contato com o administrador.');
             setIsLoading(false);
@@ -227,7 +238,7 @@ const LoginScreen = ({ onLogin, showNotification }: {
           }
           onLogin(user);
         } else {
-          console.log('Login failed for:', cleanUsername);
+          console.log('Login falhou para:', cleanUsername, '. Usuário não encontrado ou senha incorreta.');
           setError('Usuário ou senha incorretos');
         }
       }
