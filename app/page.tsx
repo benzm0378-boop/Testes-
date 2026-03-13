@@ -108,12 +108,30 @@ const LoginScreen = ({ onLogin, showNotification }: {
 
   const fetchUsers = async () => {
     try {
+      console.log('Fetching users from /api/users...');
       const response = await fetch('/api/users', { cache: 'no-store' });
+      const contentType = response.headers.get('content-type');
+      
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+        let errorDetail = '';
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json();
+          errorDetail = errorData.message || errorData.error || '';
+        } else {
+          const text = await response.text();
+          console.error('Server returned non-JSON error:', text.substring(0, 200));
+          errorDetail = 'Server returned HTML instead of JSON';
+        }
+        throw new Error(`HTTP error! status: ${response.status} ${errorDetail}`);
       }
-      return await response.json();
+
+      if (contentType && contentType.includes('application/json')) {
+        return await response.json();
+      } else {
+        const text = await response.text();
+        console.error('Expected JSON but got:', text.substring(0, 200));
+        throw new Error('Server returned HTML instead of JSON');
+      }
     } catch (error: any) {
       console.error('Error fetching users:', error);
       throw error;
@@ -438,6 +456,19 @@ const LoginScreen = ({ onLogin, showNotification }: {
               </button>
             </>
           )}
+        </div>
+
+        <div className="mt-4 text-center">
+          <button 
+            type="button"
+            onClick={() => {
+              localStorage.clear();
+              window.location.reload();
+            }}
+            className="text-[10px] text-zinc-600 hover:text-zinc-400 transition-colors uppercase tracking-widest cursor-pointer"
+          >
+            Resetar App (Limpar Cache)
+          </button>
         </div>
 
         <p className="mt-8 text-center text-[10px] text-zinc-600 uppercase tracking-[0.2em]">
@@ -1603,42 +1634,56 @@ export default function FieldTestDashboard() {
   const fetchTests = useCallback(async () => {
     try {
       const response = await fetch('/api/tests');
+      const contentType = response.headers.get('content-type');
+
       if (!response.ok) {
         let errorMsg = `HTTP error! status: ${response.status}`;
-        try {
-          const errorData = await response.json();
-          if (errorData.message) errorMsg += ` - ${errorData.message}`;
-        } catch (e) {}
+        if (contentType && contentType.includes('application/json')) {
+          try {
+            const errorData = await response.json();
+            if (errorData.message) errorMsg += ` - ${errorData.message}`;
+          } catch (e) {}
+        } else {
+          const text = await response.text();
+          console.error('fetchTests: Server returned HTML error:', text.substring(0, 200));
+        }
         throw new Error(errorMsg);
       }
-      const data = await response.json();
-      if (Array.isArray(data)) {
-        setRecords(prev => {
-          // Create a map of existing records by ID to ensure uniqueness
-          const recordMap = new Map();
-          prev.forEach(r => recordMap.set(r.id, r));
-          
-          let changed = false;
 
-          data.forEach((serverRecord: TestRecord) => {
-            const localRecord = recordMap.get(serverRecord.id);
-            if (!localRecord) {
-              recordMap.set(serverRecord.id, serverRecord);
-              changed = true;
-            } else {
-              const serverTime = serverRecord.updatedAt ? new Date(serverRecord.updatedAt).getTime() : 0;
-              const localTime = localRecord.updatedAt ? new Date(localRecord.updatedAt).getTime() : 0;
+      if (contentType && contentType.includes('application/json')) {
+        const data = await response.json();
+        if (Array.isArray(data)) {
+          setRecords(prev => {
+            // Create a map of existing records by ID to ensure uniqueness
+            const recordMap = new Map();
+            prev.forEach(r => recordMap.set(r.id, r));
+            
+            let changed = false;
 
-              if (serverTime > localTime + 100) {
+            data.forEach((serverRecord: TestRecord) => {
+              const localRecord = recordMap.get(serverRecord.id);
+              if (!localRecord) {
                 recordMap.set(serverRecord.id, serverRecord);
                 changed = true;
-              }
-            }
-          });
+              } else {
+                const serverTime = serverRecord.updatedAt ? new Date(serverRecord.updatedAt).getTime() : 0;
+                const localTime = localRecord.updatedAt ? new Date(localRecord.updatedAt).getTime() : 0;
 
-          if (!changed && recordMap.size === prev.length) return prev;
-          return Array.from(recordMap.values());
-        });
+                if (serverTime > localTime + 100) {
+                  recordMap.set(serverRecord.id, serverRecord);
+                  changed = true;
+                }
+              }
+            });
+
+            if (!changed && recordMap.size === prev.length) return prev;
+            return Array.from(recordMap.values());
+          });
+        }
+      } else {
+        const text = await response.text();
+        console.error('fetchTests: Expected JSON but got HTML:', text.substring(0, 200));
+        throw new Error('Server returned HTML instead of JSON');
       }
     } catch (error) {
       console.error('Error fetching tests:', error);

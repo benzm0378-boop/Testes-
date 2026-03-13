@@ -36,9 +36,16 @@ app.prepare().then(() => {
     });
   });
 
-  server.all(/.*/, (req, res) => {
+  server.all('*', (req, res) => {
     const parsedUrl = parse(req.url!, true);
-    handle(req, res, parsedUrl);
+    const { pathname } = parsedUrl;
+
+    // Log API requests to debug 404/HTML issues
+    if (pathname?.startsWith('/api/')) {
+      console.log(`Server: API Request - ${req.method} ${pathname}`);
+    }
+
+    return handle(req, res, parsedUrl);
   });
 
   const PORT = 3000;

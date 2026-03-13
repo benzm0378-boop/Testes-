@@ -53,51 +53,67 @@ const DEFAULT_ADMIN = {
   username: 'admin',
   role: 'administrador',
   registration: 'admin123',
-  password: 'admin123'
+  password: 'admin123',
+  isActive: true
 };
 
 export async function getUsers() {
   console.log('Storage: getUsers() called');
+  let users: any[] = [];
+
   if (supabase) {
     try {
       console.log('Storage: Fetching users from Supabase...');
       const { data, error } = await supabase.from('users').select('*');
       if (error) {
-        console.error('Supabase getUsers error:', error);
+        console.error('Storage: Supabase getUsers error:', error);
       } else if (data && data.length > 0) {
         console.log('Storage: Users loaded from Supabase:', data.length);
-        memoryUsers = data;
-        return data;
+        users = data;
       } else {
-        console.log('Storage: Supabase returned no users, falling back to local storage');
+        console.log('Storage: Supabase returned no users');
       }
     } catch (err) {
-      console.error('Supabase getUsers exception:', err);
+      console.error('Storage: Supabase getUsers exception:', err);
     }
   }
 
-  if (memoryUsers) {
-    console.log('Storage: Returning users from memory:', memoryUsers.length);
-    return memoryUsers;
-  }
-
-  try {
-    console.log('Storage: Checking USERS_FILE:', USERS_FILE);
-    if (fs.existsSync(USERS_FILE)) {
-      const data = fs.readFileSync(USERS_FILE, 'utf8');
-      memoryUsers = JSON.parse(data);
-      console.log('Storage: Users loaded from file:', USERS_FILE, memoryUsers?.length);
-      return memoryUsers || [DEFAULT_ADMIN];
+  if (users.length === 0) {
+    if (memoryUsers && memoryUsers.length > 0) {
+      console.log('Storage: Returning users from memory:', memoryUsers.length);
+      users = memoryUsers;
     } else {
-      console.log('Storage: Users file not found:', USERS_FILE);
+      try {
+        console.log('Storage: Checking USERS_FILE:', USERS_FILE);
+        if (fs.existsSync(USERS_FILE)) {
+          const data = fs.readFileSync(USERS_FILE, 'utf8');
+          const parsed = JSON.parse(data);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            memoryUsers = parsed;
+            users = parsed;
+            console.log('Storage: Users loaded from file:', users.length);
+          }
+        }
+      } catch (error) {
+        console.error('Storage: File read failed:', error);
+      }
     }
-  } catch (error) {
-    console.error('Storage: File read failed:', error);
   }
 
-  console.log('Storage: Returning default admin');
-  memoryUsers = [DEFAULT_ADMIN];
-  return memoryUsers;
+  // Ensure DEFAULT_ADMIN is always present
+  if (users.length === 0) {
+    console.log('Storage: No users found, using default admin');
+    users = [DEFAULT_ADMIN];
+  } else {
+    const hasAdmin = users.some(u => u.username === DEFAULT_ADMIN.username || u.registration === DEFAULT_ADMIN.registration);
+    if (!hasAdmin) {
+      console.log('Storage: Admin not found in list, adding default admin');
+      users.push(DEFAULT_ADMIN);
+    }
+  }
+
+  memoryUsers = users;
+  return users;
 }
 
 export async function saveUsers(users: any[]) {
@@ -149,40 +165,54 @@ export async function saveUsers(users: any[]) {
 }
 
 export async function getTests() {
+  console.log('Storage: getTests() called');
   let tests: any[] = [];
+  
+  // Try Supabase first
   if (supabase) {
-    const { data, error } = await supabase.from('tests').select('*');
-    if (error) {
-      console.error('Supabase getTests error:', error);
-      tests = memoryTests || [];
-    } else {
-      tests = data || [];
+    try {
+      console.log('Storage: Fetching tests from Supabase...');
+      const { data, error } = await supabase.from('tests').select('*');
+      if (error) {
+        console.error('Storage: Supabase getTests error:', error);
+      } else if (data) {
+        console.log('Storage: Tests loaded from Supabase:', data.length);
+        tests = data;
+        memoryTests = data;
+      }
+    } catch (err) {
+      console.error('Storage: Supabase getTests exception:', err);
     }
-  } else {
+  }
+
+  // Fallback to memory or file if Supabase failed or returned nothing
+  if (tests.length === 0) {
     if (memoryTests) {
+      console.log('Storage: Returning tests from memory:', memoryTests.length);
       tests = memoryTests;
     } else {
       try {
+        console.log('Storage: Checking TESTS_FILE:', TESTS_FILE);
         if (fs.existsSync(TESTS_FILE)) {
           const data = fs.readFileSync(TESTS_FILE, 'utf8');
           memoryTests = JSON.parse(data);
           tests = memoryTests || [];
+          console.log('Storage: Tests loaded from file:', tests.length);
+        } else {
+          console.log('Storage: Tests file not found');
         }
       } catch (error) {
-        console.error('File read failed:', error);
+        console.error('Storage: File read failed:', error);
       }
     }
   }
 
   // Rollover logic: move unfinished tests to today if they are from the past
   const now = new Date();
-  // Adjust to local time (assuming UTC-3 for Brazil, but let's use a simple YYYY-MM-DD comparison)
-  // The user's local time is provided: 2026-03-10
   const todayStr = now.toISOString().split('T')[0];
   
   let hasChanges = false;
   const updatedTests = tests.map(test => {
-    // If test is not started (dataInicio is '-') and it's from a previous day
     if (test.dataInicio === '-' && test.dataSolicitacao && test.dataSolicitacao < todayStr && !test.isDeleted) {
       hasChanges = true;
       return {
@@ -195,79 +225,79 @@ export async function getTests() {
   });
 
   if (hasChanges) {
-    // Sort by original order if needed, but here we just update and save
-    // The user said "seguindo a ordem (dos mais antigos para os mais novos)"
-    // If we update all of them to today, they keep their relative order in the array.
-    await saveTests(updatedTests);
+    console.log('Storage: Rollover detected, saving updated tests...');
+    // Update memory immediately to avoid recursion if saveTests calls getTests
+    memoryTests = updatedTests;
+    
+    // Save to backend (Supabase and/or File)
+    // We call a internal version of save to avoid any potential loops
+    await internalSaveTests(updatedTests);
     return updatedTests;
   }
 
   return tests;
 }
 
+async function internalSaveTests(testsWithIds: any[]) {
+  let supabaseSuccess = false;
+
+  if (supabase) {
+    try {
+      const { error } = await supabase.from('tests').upsert(testsWithIds, { onConflict: 'id' });
+      if (!error) {
+        supabaseSuccess = true;
+      } else {
+        console.error('Storage: internalSaveTests Supabase error:', error.message);
+      }
+    } catch (err) {
+      console.error('Storage: internalSaveTests Supabase exception:', err);
+    }
+  }
+
+  try {
+    fs.writeFileSync(TESTS_FILE, JSON.stringify(testsWithIds, null, 2));
+  } catch (error) {
+    console.error('Storage: internalSaveTests File write failed:', error);
+    if (!supabaseSuccess) throw error;
+  }
+}
+
 export async function saveTests(data: any | any[]) {
+  console.log('Storage: saveTests() called');
   const isArray = Array.isArray(data);
   const testsToSave = isArray ? data : [data];
   
-  // Ensure all tests have an ID
   const testsWithIds = testsToSave.map(test => ({
     ...test,
     id: test.id || randomUUID()
   }));
 
-  let supabaseSuccess = false;
-
-  if (supabase) {
-    try {
-      console.log(`Tentando salvar ${testsWithIds.length} teste(s) no Supabase`);
-      const { error } = await supabase.from('tests').upsert(testsWithIds, { onConflict: 'id' });
-      if (error) {
-        console.error('Erro no Supabase saveTests:', error.message, error.details);
-        // Se o erro for de coluna ausente, tentamos salvar sem a coluna updatedAt
-        if (error.message.includes('updatedAt') || error.message.includes('column')) {
-          console.log('Tentando salvar sem a coluna updatedAt...');
-          const testsWithoutUpdate = testsWithIds.map(({ updatedAt, ...t }) => t);
-          const { error: retryError } = await supabase.from('tests').upsert(testsWithoutUpdate, { onConflict: 'id' });
-          if (!retryError) {
-            supabaseSuccess = true;
-            console.log('Dados salvos com sucesso no Supabase (sem coluna updatedAt)');
-          } else {
-            console.error('Erro na segunda tentativa Supabase saveTests:', retryError.message);
-          }
-        }
-      } else {
-        console.log('Dados salvos com sucesso no Supabase');
-        supabaseSuccess = true;
-      }
-    } catch (err: any) {
-      console.error('Exceção no Supabase saveTests:', err.message);
-    }
-  }
-
-  // Local fallback logic - Always update local memory/file as well
-  if (!memoryTests) {
-    await getTests(); // Load existing tests into memory if not already there
-  }
-
+  // Update memory state
   if (isArray) {
     memoryTests = testsWithIds;
   } else {
     const singleTest = testsWithIds[0];
-    const index = (memoryTests || []).findIndex(t => t.id === singleTest.id);
+    if (!memoryTests) {
+      // If memory is empty, try to load it first (but avoid calling getTests which has rollover logic)
+      try {
+        if (fs.existsSync(TESTS_FILE)) {
+          memoryTests = JSON.parse(fs.readFileSync(TESTS_FILE, 'utf8')) || [];
+        } else {
+          memoryTests = [];
+        }
+      } catch (e) {
+        memoryTests = [];
+      }
+    }
+    
+    const index = memoryTests!.findIndex(t => t.id === singleTest.id);
     if (index !== -1) {
       memoryTests![index] = singleTest;
     } else {
-      memoryTests = [...(memoryTests || []), singleTest];
+      memoryTests!.push(singleTest);
     }
   }
 
-  try {
-    fs.writeFileSync(TESTS_FILE, JSON.stringify(memoryTests, null, 2));
-  } catch (error) {
-    console.error('File write failed:', error);
-    // Only throw if both failed
-    if (!supabaseSuccess) throw error;
-  }
-
+  await internalSaveTests(memoryTests!);
   return isArray ? testsWithIds : testsWithIds[0];
 }

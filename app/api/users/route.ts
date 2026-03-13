@@ -3,7 +3,9 @@ import { getUsers, saveUsers } from '@/lib/storage';
 
 export async function GET() {
   try {
+    console.log('API: GET /api/users called');
     const users = await getUsers();
+    console.log(`API: Returning ${users.length} users`);
     return NextResponse.json(users);
   } catch (error) {
     console.error('API Users GET Error:', error);
