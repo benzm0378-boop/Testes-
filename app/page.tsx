@@ -469,19 +469,6 @@ const LoginScreen = ({ onLogin, showNotification }: {
           )}
         </div>
 
-        <div className="mt-4 text-center">
-          <button 
-            type="button"
-            onClick={() => {
-              localStorage.clear();
-              window.location.reload();
-            }}
-            className="text-[10px] text-zinc-600 hover:text-zinc-400 transition-colors uppercase tracking-widest cursor-pointer"
-          >
-            Resetar App (Limpar Cache)
-          </button>
-        </div>
-
         <p className="mt-8 text-center text-[10px] text-zinc-600 uppercase tracking-[0.2em]">
           MinasMáquinas S/A • Acesso Restrito
         </p>
