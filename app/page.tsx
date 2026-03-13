@@ -1465,6 +1465,7 @@ export default function FieldTestDashboard() {
     isOpen: boolean;
     record: TestRecord | null;
     newPriority: number;
+    targetSolicitante?: string;
   }>({ isOpen: false, record: null, newPriority: 0 });
   const [notification, setNotification] = useState<{
     message: string;
@@ -1500,6 +1501,57 @@ export default function FieldTestDashboard() {
     
     showNotification('Ordem do teste alterada com sucesso!', 'success');
   };
+
+  const getJumpedSolicitante = (recordId: string, newPriority: number) => {
+    // Get all waiting tests (not deleted, not started, not finished)
+    const waitingTests = records
+      .filter(r => !r.isDeleted && r.dataInicio === '-' && r.dataFim === '-')
+      .sort((a, b) => {
+        const prioA = a.priority || 0;
+        const prioB = b.priority || 0;
+        if (prioB !== prioA) return prioB - prioA;
+        const dateA = (a.dataSolicitacao || '0000-00-00') + (a.horaSolicitacao || '00:00');
+        const dateB = (b.dataSolicitacao || '0000-00-00') + (b.horaSolicitacao || '00:00');
+        return dateA.localeCompare(dateB);
+      });
+
+    const currentIndex = waitingTests.findIndex(r => r.id === recordId);
+    if (currentIndex === -1) return null;
+
+    const updatedTests = waitingTests.map(r => r.id === recordId ? { ...r, priority: newPriority } : r);
+    const sortedUpdated = [...updatedTests].sort((a, b) => {
+      const prioA = a.priority || 0;
+      const prioB = b.priority || 0;
+      if (prioB !== prioA) return prioB - prioA;
+      const dateA = (a.dataSolicitacao || '0000-00-00') + (a.horaSolicitacao || '00:00');
+      const dateB = (b.dataSolicitacao || '0000-00-00') + (b.horaSolicitacao || '00:00');
+      return dateA.localeCompare(dateB);
+    });
+
+    const newIndex = sortedUpdated.findIndex(r => r.id === recordId);
+    if (newIndex === currentIndex) return null;
+
+    let jumpedRecords: TestRecord[] = [];
+    if (newIndex < currentIndex) {
+      // Moved UP: jumped over records from newIndex to currentIndex - 1
+      jumpedRecords = waitingTests.slice(newIndex, currentIndex);
+    } else {
+      // Moved DOWN: jumped over records from currentIndex + 1 to newIndex
+      jumpedRecords = waitingTests.slice(currentIndex + 1, newIndex + 1);
+    }
+
+    const normalize = (s: string) => s?.trim().toLowerCase().replace(/\s+/g, ' ') || "";
+    const userFullName = normalize(`${currentUser?.firstName} ${currentUser?.lastName}`);
+    const userUsername = normalize(currentUser?.username || "");
+
+    const other = jumpedRecords.find(r => {
+      const sol = normalize(r.solicitante);
+      return sol !== userFullName && sol !== userUsername;
+    });
+
+    return other ? other.solicitante : null;
+  };
+
   const driverName = currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : '';
 
   const dynamicDrivers = allUsers
@@ -2755,14 +2807,16 @@ export default function FieldTestDashboard() {
                                           const newPriority = currentPriority + 1;
                                           const userFullName = `${currentUser?.firstName} ${currentUser?.lastName}`.trim().toLowerCase();
                                           const solicitanteName = record.solicitante.trim().toLowerCase();
+                                          const jumpedSolicitante = getJumpedSolicitante(record.id, newPriority);
                                           
-                                          if (isAdminOrConsultant || userFullName === solicitanteName) {
+                                          if (isAdminOrConsultant || (userFullName === solicitanteName && !jumpedSolicitante)) {
                                             handleUpdatePriority(record.id, newPriority);
                                           } else {
                                             setPriorityModal({
                                               isOpen: true,
                                               record: record,
-                                              newPriority: newPriority
+                                              newPriority: newPriority,
+                                              targetSolicitante: jumpedSolicitante || record.solicitante
                                             });
                                           }
                                         }}
@@ -2778,14 +2832,16 @@ export default function FieldTestDashboard() {
                                           const newPriority = Math.max(0, currentPriority - 1);
                                           const userFullName = `${currentUser?.firstName} ${currentUser?.lastName}`.trim().toLowerCase();
                                           const solicitanteName = record.solicitante.trim().toLowerCase();
+                                          const jumpedSolicitante = getJumpedSolicitante(record.id, newPriority);
                                           
-                                          if (isAdminOrConsultant || userFullName === solicitanteName) {
+                                          if (isAdminOrConsultant || (userFullName === solicitanteName && !jumpedSolicitante)) {
                                             handleUpdatePriority(record.id, newPriority);
                                           } else {
                                             setPriorityModal({
                                               isOpen: true,
                                               record: record,
-                                              newPriority: newPriority
+                                              newPriority: newPriority,
+                                              targetSolicitante: jumpedSolicitante || record.solicitante
                                             });
                                           }
                                         }}
@@ -2885,7 +2941,7 @@ export default function FieldTestDashboard() {
         {priorityModal.isOpen && (
           <PriorityConsentModal 
             isOpen={priorityModal.isOpen}
-            solicitanteName={priorityModal.record?.solicitante || ''}
+            solicitanteName={priorityModal.targetSolicitante || priorityModal.record?.solicitante || ''}
             allUsers={allUsers}
             onClose={() => setPriorityModal(prev => ({ ...prev, isOpen: false }))}
             onConfirm={() => {
