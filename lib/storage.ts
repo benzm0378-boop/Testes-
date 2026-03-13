@@ -187,9 +187,10 @@ export async function saveUsers(users: any[]) {
 
 export async function getTests() {
   console.log('Storage: getTests() called');
-  let tests: any[] = [];
+  let supabaseTests: any[] = [];
+  let localTests: any[] = [];
   
-  // Try Supabase first
+  // 1. Try Supabase
   if (supabase) {
     try {
       console.log('Storage: Fetching tests from Supabase...');
@@ -198,56 +199,68 @@ export async function getTests() {
         console.error('Storage: Supabase getTests error:', error);
       } else if (Array.isArray(data)) {
         console.log('Storage: Tests loaded from Supabase:', data.length);
-        tests = data;
-        memoryTests = data;
-      } else {
-        console.log('Storage: Supabase returned non-array data for tests:', data);
+        supabaseTests = data;
       }
     } catch (err) {
       console.error('Storage: Supabase getTests exception:', err);
     }
   }
 
-  // Fallback to memory or file if Supabase failed or returned nothing
-  if (tests.length === 0) {
-    if (Array.isArray(memoryTests)) {
-      console.log('Storage: Returning tests from memory:', memoryTests.length);
-      tests = memoryTests;
-    } else {
-      try {
-        console.log('Storage: Checking TESTS_FILE:', TESTS_FILE);
-        if (fs.existsSync(TESTS_FILE)) {
-          const data = fs.readFileSync(TESTS_FILE, 'utf8');
-          try {
-            const parsed = JSON.parse(data);
-            if (Array.isArray(parsed)) {
-              memoryTests = parsed;
-              tests = parsed;
-              console.log('Storage: Tests loaded from file:', tests.length);
-            } else {
-              console.error('Storage: tests.json is not an array');
-              tests = [];
-            }
-          } catch (parseError) {
-            console.error('Storage: Failed to parse tests.json:', parseError);
-            tests = [];
+  // 2. Try Memory
+  if (Array.isArray(memoryTests) && memoryTests.length > 0) {
+    console.log('Storage: Found tests in memory:', memoryTests.length);
+    localTests = memoryTests;
+  } else {
+    // 3. Try File
+    try {
+      if (fs.existsSync(TESTS_FILE)) {
+        const data = fs.readFileSync(TESTS_FILE, 'utf8');
+        try {
+          const parsed = JSON.parse(data);
+          if (Array.isArray(parsed)) {
+            localTests = parsed;
+            console.log('Storage: Tests loaded from file:', localTests.length);
           }
-        } else {
-          console.log('Storage: Tests file not found');
+        } catch (parseError) {
+          console.error('Storage: Failed to parse tests.json:', parseError);
         }
-      } catch (error) {
-        console.error('Storage: File read failed:', error);
       }
+    } catch (error) {
+      console.error('Storage: File read failed:', error);
     }
   }
 
-  // Ensure tests is an array before mapping
-  if (!Array.isArray(tests)) {
-    console.error('Storage: tests is not an array before rollover logic:', tests);
-    tests = [];
-  }
+  // 4. Merge tests (prioritize most recently updated)
+  const testMap = new Map();
 
-  // Rollover logic: move unfinished tests to today if they are from the past
+  // Add local tests first
+  localTests.forEach(t => {
+    if (t && t.id) {
+      testMap.set(t.id, t);
+    }
+  });
+
+  // Merge with Supabase tests
+  supabaseTests.forEach(s => {
+    if (s && s.id) {
+      const existing = testMap.get(s.id);
+      if (!existing) {
+        testMap.set(s.id, s);
+      } else {
+        // Compare updatedAt
+        const sTime = s.updatedAt ? new Date(s.updatedAt).getTime() : 0;
+        const eTime = existing.updatedAt ? new Date(existing.updatedAt).getTime() : 0;
+        if (sTime > eTime) {
+          testMap.set(s.id, s);
+        }
+      }
+    }
+  });
+
+  let tests = Array.from(testMap.values());
+  memoryTests = tests;
+
+  // 5. Rollover logic: move unfinished tests to today if they are from the past
   const now = new Date();
   const todayStr = now.toISOString().split('T')[0];
   

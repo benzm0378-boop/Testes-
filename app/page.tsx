@@ -1459,12 +1459,62 @@ export default function FieldTestDashboard() {
     type: 'success' | 'error' | 'info';
   } | null>(null);
 
-  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+  const showNotification = useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
     setNotification({ message, type });
-  };
+  }, []);
 
   const socketRef = useRef<any>(null);
   const currentUserRef = useRef<any>(null);
+
+  // Save tests when records change (only if it was a user action)
+  // We'll use a manual trigger for saving to avoid loops with polling
+  const saveToBackend = useCallback(async (data: TestRecord | TestRecord[]) => {
+    try {
+      console.log('API: Saving to backend...', Array.isArray(data) ? `${data.length} records` : `record ${data.id}`);
+      const response = await fetch('/api/tests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      
+      if (response.ok) {
+        const savedData = await response.json();
+        console.log('API: Successfully saved to backend');
+        
+        // Update local state with server-confirmed data (including server-side updatedAt)
+        setRecords(prev => {
+          const tests = Array.isArray(savedData) ? savedData : [savedData];
+          const merged = [...prev];
+          let changed = false;
+          tests.forEach((serverRecord: TestRecord) => {
+            const index = merged.findIndex(r => r.id === serverRecord.id);
+            if (index !== -1) {
+              merged[index] = serverRecord;
+              changed = true;
+            } else {
+              merged.push(serverRecord);
+              changed = true;
+            }
+          });
+          return changed ? merged : prev;
+        });
+
+        // Emit real-time update using the data returned from server
+        if (socketRef.current) {
+          console.log('Socket: Emitting test-update');
+          socketRef.current.emit('test-update', savedData);
+        }
+        return true;
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('API: Failed to save to backend:', response.status, errorData);
+        return false;
+      }
+    } catch (error) {
+      console.error('API: Error saving tests:', error);
+      return false;
+    }
+  }, []);
 
   const isDriver = currentUser?.role?.toLowerCase().trim().includes('motorista');
   const isAdminOrConsultant = currentUser?.role?.toLowerCase().trim().includes('administrador') || 
@@ -1565,6 +1615,8 @@ export default function FieldTestDashboard() {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
           setBackupData(parsed);
+          // Load into records immediately as optimistic initial state
+          setRecords(prev => prev.length === 0 ? parsed : prev);
         }
       } catch (e) {
         console.error('Failed to parse backup data');
@@ -1572,16 +1624,7 @@ export default function FieldTestDashboard() {
     }
   }, []);
 
-  // Show backup alert if server is empty but we have local backup
-  useEffect(() => {
-    if (isMounted && records.length === 0 && backupData.length > 0 && dbStatus !== 'checking') {
-      setShowBackupAlert(true);
-    } else {
-      setShowBackupAlert(false);
-    }
-  }, [isMounted, records.length, backupData.length, dbStatus]);
-
-  const restoreFromBackup = async () => {
+  const restoreFromBackup = useCallback(async () => {
     if (backupData.length === 0) return;
     
     setRecords(backupData);
@@ -1595,7 +1638,16 @@ export default function FieldTestDashboard() {
       console.error('Failed to sync backup to server:', err);
       showNotification("Dados restaurados localmente, mas falha ao sincronizar com o servidor.", 'error');
     }
-  };
+  }, [backupData, saveToBackend, showNotification]);
+
+  // Show backup alert if server is empty but we have local backup
+  useEffect(() => {
+    if (isMounted && records.length === 0 && backupData.length > 0 && dbStatus !== 'checking') {
+      // Auto-restore if it's a fresh mount and server is empty to prevent perceived data loss
+      console.log('Persistence: Server is empty but local backup found. Auto-restoring...');
+      restoreFromBackup();
+    }
+  }, [isMounted, records.length, backupData.length, dbStatus, restoreFromBackup]);
 
   const handleExport = () => {
     if (records.length === 0) {
@@ -2004,61 +2056,13 @@ export default function FieldTestDashboard() {
     return () => clearInterval(interval);
   }, [fetchTests]);
 
-  // Save tests when records change (only if it was a user action)
-  // We'll use a manual trigger for saving to avoid loops with polling
-  const saveToBackend = async (data: TestRecord | TestRecord[]) => {
-    try {
-      console.log('API: Saving to backend...', Array.isArray(data) ? `${data.length} records` : `record ${data.id}`);
-      const response = await fetch('/api/tests', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      
-      if (response.ok) {
-        const savedData = await response.json();
-        console.log('API: Successfully saved to backend');
-        
-        // Update local state with server-confirmed data (including server-side updatedAt)
-        setRecords(prev => {
-          const tests = Array.isArray(savedData) ? savedData : [savedData];
-          const merged = [...prev];
-          let changed = false;
-          tests.forEach((serverRecord: TestRecord) => {
-            const index = merged.findIndex(r => r.id === serverRecord.id);
-            if (index !== -1) {
-              merged[index] = serverRecord;
-              changed = true;
-            } else {
-              merged.push(serverRecord);
-              changed = true;
-            }
-          });
-          return changed ? merged : prev;
-        });
-
-        // Emit real-time update using the data returned from server
-        if (socketRef.current) {
-          console.log('Socket: Emitting test-update');
-          socketRef.current.emit('test-update', savedData);
-        }
-        return true;
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('API: Failed to save to backend:', response.status, errorData);
-        return false;
-      }
-    } catch (error) {
-      console.error('API: Error saving tests:', error);
-      return false;
-    }
-  };
+  // Add record logic
 
   const handleAddRecord = (newRecord: Omit<TestRecord, 'id'>) => {
     const now = new Date().toISOString();
     const recordWithId: TestRecord = {
       ...newRecord,
-      id: Math.random().toString(36).substr(2, 9),
+      id: crypto.randomUUID(),
       motorista: newRecord.motorista || (dynamicDrivers.length > 0 ? dynamicDrivers[0] : ''),
       // Campos que serão preenchidos pelo motorista
       dataInicio: '-',

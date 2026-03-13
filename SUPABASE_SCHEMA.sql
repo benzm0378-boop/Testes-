@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS tests (
   "tipoVeiculo" TEXT,
   "testeEngatado" TEXT,
   "isDeleted" BOOLEAN DEFAULT false,
+  "priority" INTEGER DEFAULT 0,
   "updatedAt" TIMESTAMPTZ DEFAULT now(),
   "createdAt" TIMESTAMPTZ DEFAULT now()
 );
